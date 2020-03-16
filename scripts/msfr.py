@@ -15,7 +15,7 @@ my_debug = False
 
 class MSFR(object):
     '''Molten Spherical chloride salt Fast Raactor'''
-    def __init__(self, r:float=300.0, refl:float=500, e:float=0.10, salt="58%NaCl+42%UCl3"):
+    def __init__(self, r:float=300.0, refl:float=500.0, e:float=0.1083, salt="58%NaCl+42%UCl3"):
         if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
             raise ValueError("Bad parameters: ", r, refl, e)
 
@@ -24,17 +24,18 @@ class MSFR(object):
         self.refl:float    = refl       # Outer reflector thickness
         self.salt_formula:str = salt    # Salt formula
         self.s             = Salt(self.salt_formula, e) # Salt used
+        self.s.set_chlorine_37Cl_fraction(0.99999)      # Enriched chlorine-37
         self.tempK:float   = 900.0      # Salt temperature [K]
         self.deplete:float = 0          # Depletion flag, hacky, see code!
                                         # 0 - no depletion, then in years
         self.lib:str       = '09c'      # CE xsection temp selection
         self.queue:str     = 'gen6'     # NEcluster torque queue
-        self.histories:int = 5000       # Neutron histories per cycle
+        self.histories:int = 10000      # Neutron histories per cycle
         self.ompcores:int  = 16         # OMP core count
-        self.deck_name:str = 'fill'     # Serpent input file name
+        self.deck_name:str = 'msfr'     # Serpent input file name
         self.deck_path:str = '/tmp'     # Where to run the lattice deck
-        self.main_path:str = os.path.expanduser('~/APump')  # Main path
-        self.qsub_path:str = self.main_path + '/run.sh'     # qsub script path
+        self.main_path:str = os.path.expanduser('~/')       # Main path
+        self.qsub_file:str = self.main_path + '/run.sh'     # qsub script path
 
     def salt_volume(self) -> float:
         '''Get salt volume, twice the fuel sphere volume'''
@@ -43,7 +44,7 @@ class MSFR(object):
 
     def get_cells(self) -> str:
         'Cell cards for Serpent input deck'
-        cells = '''\
+        cells = '''
 %______________cell definitions_____________________________________
 cell 11  0  fuelsalt  -1      % fuel salt
 cell 31  0  refl       1 -2   % reflector
@@ -53,7 +54,7 @@ cell 99  0  outside    2      % graveyard
 
     def get_surfaces(self) -> str:
         'Surface cards for Serpent input deck'
-        surfaces = '''\
+        surfaces = '''
 %______________surface definitions__________________________________
 surf 1   sph  0.0 0.0 0.0 {self.r}      % fuel salt radius
 surf 2   sph  0.0 0.0 0.0 {self.refl}   % reflector
@@ -63,7 +64,7 @@ surf 2   sph  0.0 0.0 0.0 {self.refl}   % reflector
     def get_materials(self) -> str:
         'Material definitions, non-salt'
         refl_lib  = self.lib
-        materials = '''\
+        materials = '''
 % Iron reflector [density 7.874/((1+680*12e-6)^3)]
 mat refl   -7.68435 tmp 900 rgb 128 128 178
 26054.{refl_lib}  -0.058450   %  Fe
@@ -76,9 +77,9 @@ mat refl   -7.68435 tmp 900 rgb 128 128 178
     def get_data_cards(self) -> str:
         'Data cards for the reactor'
         fs_volume = self.salt_volume()
-        data_cards = '''\
+        data_cards = '''
 % Fuel salt volume
-set mvol fuelsalt {fs_volume}
+set mvol fuelsalt 0 {fs_volume}
 
 % Power 2GWth
 set power 2e9
@@ -90,16 +91,19 @@ set bc 1
 % set arr 2
 
 % Neutron population and criticality cycles
-set pop 10000 250 50
+set pop {self.histories} 240 40
+
+% Turning off group constant generation hastens the calculation
+set gcu -1 
 '''
-        data_cards += '''\
+        data_cards += '''
 % Data Libraries
 set acelib "sss_endfb7u.sssdir"
 set declib "sss_endfb7.dec"
 set nfylib "sss_endfb7.nfy"
 '''
         if do_plots:
-            data_cards += '''\
+            data_cards += '''
 % Plots
 plot 3 1500 1500
 % mesh 3 1500 1500
@@ -109,7 +113,7 @@ plot 3 1500 1500
     def get_repr_cards(self) -> str:
         'Reprocessing setup'
         refuel_lib = self.lib
-        repr_cards = '''\
+        repr_cards = '''
 %___________Reprocessing___________
 % First we need some extra materials to do depletion with reprocessing correctly.
 
@@ -122,7 +126,7 @@ mat U_stock -3.5096 burn 1 vol 1e8
 
 % tanks for offgases
 mat offgastankcore 0.0007 burn 1 vol 1e6
-2004.{refuel_lib}09c 1
+2004.{refuel_lib} 1
 
 % overflow tank
 mat overflow 0.0007 burn 1 vol 1e8
@@ -144,23 +148,24 @@ Rn 1e-2
 mflow over
 all 0.0
 
-set pcc 0 %predictor-corrector must be turned off to use depletion
-set gcu -1 %turning off group constant generation hastens the calculation
-%set depmtx 1 %dumps depletion matrices if needed. should be one per burnt material.
+% predictor-corrector must be turned off to use depletion
+set pcc 0 
+% dumps depletion matrices if needed. should be one per burnt material.
+% set depmtx 1
 
 %syntax:
 % rc <from_mat> <to_mat> <mflow> <setting> where setting is either 0, 1 or 2.
 
 rep source_rep
-rc U_stock salt U_in 0
-rc salt offgastankcore offgasratecore 1
-rc salt overflow over 1
+rc U_stock fuelsalt U_in 0
+rc fuelsalt offgastankcore offgasratecore 1
+rc fuelsalt overflow over 1
 '''
         return repr_cards.format(**locals())
 
     def get_depl_cards(self) -> str:
         'Depletion data setup'
-        depl_cards = '''\
+        depl_cards = '''
 % Depletion cards
 dep
 pro source_rep
@@ -214,6 +219,7 @@ set title "sphMCFR radius {self.r}, reflector {self.refl}"
 '''
         deck += self.get_surfaces()
         deck += self.get_cells()
+        deck += "\n"
         deck += self.s.serpent_mat(self.tempK)
         deck += self.get_materials()
         deck += self.get_data_cards()
@@ -233,20 +239,55 @@ set title "sphMCFR radius {self.r}, reflector {self.refl}"
     def save_deck(self):
         'Saves Serpent deck into an input file'
         try:
-            os.makedirs(self.deck_path)
+            os.makedirs(self.deck_path, exist_ok = True)
             fh = open(self.deck_path + '/' + self.deck_name, 'w')
             fh.write(self.get_deck())
             fh.close()
         except IOError as e:
-            print("[ERROR] Unable to write to file: ",
+            print("[ERROR] Unable to write to deck file: ",
                   self.deck_path + '/' + self.deck_name)
             print(e)
+
+    def save_qsub_file(self):
+        'Writes run file for TORQUE.'
+        qsub_content = '''#!/bin/bash
+#PBS -V
+#PBS -N MSFR_S2
+#PBS -q {self.queue}
+#PBS -l nodes=1:ppn={self.ompcores}
+
+hostname
+rm -f done.dat
+cd ${{PBS_O_WORKDIR}}
+module load mpi
+module load serpent
+
+sss2 -omp {self.ompcores} {self.deck_name} > myout.out
+awk 'BEGIN{{ORS="\\t"}} /ANA_KEFF/ || /CONVERSION/ {{print $7" "$8;}}' {self.deck_name}_res.m > done.out
+#rm {self.deck_name}.out
+'''.format(**locals())
+        try:                # Write the deck
+            f = open(self.qsub_file, 'w')
+            f.write(qsub_content)
+            f.close()
+        except IOError as e:
+            print("Unable to write to qsub file", f)
+            print(e)
+
+    def run_deck(self):
+        'Runs the deck using qsub_file script'
+        if self.queue == 'local':    # Run the deck locally
+            os.chdir(self.deck_path)
+            os.system(self.qsub_file)
+        else:               # Submit the job on the cluster
+            os.system('cd ' + self.deck_path + ' && qsub ' + self.qsub_file)
 
 
 def liquidusNaClUCl3(xUCl3:float) -> float:
     '''Returns liquidus temperature of NaCl-LiCl3 based on
     https://doi.org/10.1016/j.jnucmat.2015.07.050
-    xuCl3 is UCl3 molar fraction [0:1]
+    using https://automeris.io/WebPlotDigitizer/
+    xUCl3 is UCl3 molar fraction [0:1]
     returns temperature in Celsius'''
 
     x = [0.00, 0.022808207269860187, 0.05567526666146555, 0.0855318371043732,
@@ -284,4 +325,15 @@ if __name__ == '__main__':
     print("This module handles a simple lattice.")
     input("Press Ctrl+C to quit, or enter else to test it.")
     mycore = MSFR()
+    mycore.deplete = 50
     print("***** Serpent deck: \n" + mycore.get_deck() + "\n***** ")
+    mycore.deck_path = os.path.expanduser('~/tmp/msfr')
+    mycore.main_path = mycore.deck_path
+    print(mycore.deck_path + ' / ' + mycore.deck_name)
+    mycore.qsub_file = mycore.deck_path + "/run.sh"
+    mycore.ompcores = 8
+    mycore.queue = 'fill'
+    mycore.save_deck()
+    mycore.save_qsub_file()
+    mycore.run_deck()
+
