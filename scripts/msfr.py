@@ -34,8 +34,7 @@ class MSFR(object):
         self.ompcores:int  = 16         # OMP core count
         self.deck_name:str = 'msfr'     # Serpent input file name
         self.deck_path:str = '/tmp'     # Where to run the lattice deck
-        self.main_path:str = os.path.expanduser('~/')       # Main path
-        self.qsub_file:str = self.main_path + '/run.sh'     # qsub script path
+        self.qsub_file:str = os.path.expanduser('~/') + '/run.sh'  # qsub script path
 
     def salt_volume(self) -> float:
         '''Get salt volume, twice the fuel sphere volume'''
@@ -318,7 +317,6 @@ if __name__ == '__main__':
     mycore.deplete = 100
     print("***** Serpent deck: \n" + mycore.get_deck() + "\n***** ")
     mycore.deck_path = os.path.expanduser('~/tmp/msfr')
-    mycore.main_path = mycore.deck_path
     print(mycore.deck_path + ' / ' + mycore.deck_name)
     mycore.qsub_file = mycore.deck_path + "/run.sh"
 #    mycore.ompcores = 8
