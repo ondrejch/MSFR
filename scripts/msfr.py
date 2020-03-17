@@ -26,6 +26,7 @@ class MSFR(object):
         self.s             = Salt(self.salt_formula, e) # Salt used
         self.s.set_chlorine_37Cl_fraction(0.99999)      # Enriched chlorine-37
         self.tempK:float   = 900.0      # Salt temperature [K]
+        self.power:float   = 3e9        # Core thermal power [W]
         self.deplete:float = 0          # Depletion flag, hacky, see code!
                                         # 0 - no depletion, then in years
         self.lib:str       = '09c'      # CE xsection temp selection
@@ -80,8 +81,8 @@ mat refl   -7.68435 tmp 900 rgb 128 128 178
 % Fuel salt volume
 set mvol fuelsalt 0 {fs_volume}
 
-% Power 3 GWth
-set power 3e9
+% Power in thermal W
+set power {self.power}
 
 % Boundary condition
 set bc 1
