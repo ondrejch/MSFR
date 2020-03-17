@@ -14,7 +14,7 @@ my_debug = False
 
 
 class MSFR(object):
-    '''Molten Spherical chloride salt Fast Raactor'''
+    '''Molten Spherical chloride salt Fast Reactor'''
     def __init__(self, r:float=300.0, refl:float=500.0, e:float=0.1083, salt="58%NaCl+42%UCl3"):
         if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
             raise ValueError("Bad parameters: ", r, refl, e)
@@ -29,6 +29,7 @@ class MSFR(object):
         self.power:float   = 3e9        # Core thermal power [W]
         self.deplete:float = 0          # Depletion flag, hacky, see code!
                                         # 0 - no depletion, then in years
+                                        # Can be 0, 1, 10, 20, 30, 40 ... n/10 years
         self.lib:str       = '09c'      # CE xsection temp selection
         self.queue:str     = 'gen6'     # NEcluster torque queue
         self.histories:int = 10000      # Neutron histories per cycle
