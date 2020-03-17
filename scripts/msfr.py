@@ -81,8 +81,8 @@ mat refl   -7.68435 tmp 900 rgb 128 128 178
 % Fuel salt volume
 set mvol fuelsalt 0 {fs_volume}
 
-% Power 2GWth
-set power 2e9
+% Power 3 GWth
+set power 3e9
 
 % Boundary condition
 set bc 1
@@ -94,7 +94,7 @@ set bc 1
 set pop {self.histories} 240 40
 
 % Turning off group constant generation hastens the calculation
-set gcu -1 
+set gcu -1
 '''
         data_cards += '''
 % Data Libraries
@@ -149,7 +149,7 @@ mflow over
 all 0.0
 
 % predictor-corrector must be turned off to use depletion
-set pcc 0 
+set pcc 0
 % dumps depletion matrices if needed. should be one per burnt material.
 % set depmtx 1
 
@@ -167,6 +167,7 @@ rc fuelsalt overflow over 1
         'Depletion data setup'
         depl_cards = '''
 % Depletion cards
+set inventory all
 dep
 pro source_rep
 daystep
@@ -187,30 +188,20 @@ daystep
 30 30 30 30 30 30 30 30 30 30 30 30
 30 30 30 30 30 30 30 30 30 30 30 30
 30 30 30 30 30 30 30 30 30 30 30 30
-30 30 30 30 30 30 30 30 30 30 30 30
-30 30 30 30 30 30 30 30 30 30 30 30
-30 30 30 30 30 30 30 30 30 30 30 30
-30 30 30 30 30 30 30 30 30 30 30 30
-30 30 30 30 30 30 30 30 30 30 30 30
-30 30 30 30 30 30 30 30 30 30 30 30
+60 60 60 60 60 60 60 60 60 60 60 60
+60 60 60 60 60 60 60 60 60 60 60 60
+60 60 60 60 60 60 60 60 60 60 60 60
 '''
         return depl_add_9years.format(**locals())
 
-    def get_depl_add_20years(self) -> str:
-        'Add 20 years in daysteps'
-        depl_add_20years = '''\
-60 60 60 60 60 60 60 60 60 60 60 60
-60 60 60 60 60 60 60 60 60 60 60 60
-60 60 60 60 60 60 60 60 60 60 60 60
-60 60 60 60 60 60 60 60 60 60 60 60
-60 60 60 60 60 60 60 60 60 60 60 60
-60 60 60 60 60 60 60 60 60 60 60 60
-60 60 60 60 60 60 60 60 60 60 60 60
-60 60 60 60 60 60 60 60 60 60 60 60
-60 60 60 60 60 60 60 60 60 60 60 60
-60 60 60 60 60 60 60 60 60 60 60 60
+    def get_depl_add_10years(self) -> str:
+        'Add 10 years in daysteps'
+        depl_add_10years = '''\
+120 120 120 120 120 120 120 120 120 120 120 120
+120 120 120 120 120 120 120 120 120 120 120 120
+120 120 120 120 120 120
 '''
-        return depl_add_20years.format(**locals())
+        return depl_add_10years.format(**locals())
 
     def get_deck(self) -> str:
         'Serpent deck for the lattice'
@@ -230,10 +221,9 @@ set title "sphMCFR radius {self.r}, reflector {self.refl}"
             deck += self.get_depl_1st_year()
         if self.deplete > 9:
             deck += self.get_depl_add_9years()
-        if self.deplete > 29:
-            deck += self.get_depl_add_20years()
-        if self.deplete > 49:
-            deck += self.get_depl_add_20years()
+        if self.deplete > 19:
+            for i in range((self.deplete - 10) // 10):
+                deck += self.get_depl_add_10years()
         return deck.format(**locals())
 
     def save_deck(self):
@@ -316,8 +306,8 @@ def liquidusNaClUCl3(xUCl3:float) -> float:
          797.4816559724537, 807.9561357476216, 817.6058578175869,
          827.1639401425298, 835.8056250172476, 840.0960726571891,
          841.9715489376551]
-    tliquidus = interpolate.interp1d(x, T, kind='cubic')
-    return float(tliquidus(xUCl3))
+    Tliquidus = interpolate.interp1d(x, T, kind='cubic')
+    return float(Tliquidus(xUCl3))
 
 
 # ------------------------------------------------------------
@@ -325,15 +315,14 @@ if __name__ == '__main__':
     print("This module handles a simple lattice.")
     input("Press Ctrl+C to quit, or enter else to test it.")
     mycore = MSFR()
-    mycore.deplete = 50
+    mycore.deplete = 100
     print("***** Serpent deck: \n" + mycore.get_deck() + "\n***** ")
     mycore.deck_path = os.path.expanduser('~/tmp/msfr')
     mycore.main_path = mycore.deck_path
     print(mycore.deck_path + ' / ' + mycore.deck_name)
     mycore.qsub_file = mycore.deck_path + "/run.sh"
-    mycore.ompcores = 8
-    mycore.queue = 'fill'
+#    mycore.ompcores = 8
+#    mycore.queue = 'fill'
     mycore.save_deck()
     mycore.save_qsub_file()
     mycore.run_deck()
-
