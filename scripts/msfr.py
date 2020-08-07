@@ -58,7 +58,7 @@ cell 99  0  outside    2      % graveyard
 '''
         else:
             cells += '''
-cell 20  0  silver     2 -3   % silver 
+cell 20  0  silver     2 -3   % silver
 cell 32  0  refl       3 -4   % reflector
 cell 99  0  outside    4      % graveyard
 '''
@@ -95,15 +95,15 @@ mat refl   -7.68435 tmp 900 rgb 128 128 178
 '''
 # https://www.sciencedirect.com/science/article/abs/pii/0022190262801882
         silver_density = 10.465 - 9.967e-4*self.silver_T # [g/cm^3]
-        
+
         if self.silver_at_r > 0.0 and self.silver_at_r <= self.r:
             raise ValueError('Silver shell inside fuel ', self.silver_at_r, self.r)
         if self.silver_at_r >= self.refl:
             raise ValueError('Silver shell outside reflector ', self.silver_at_r, self.refl)
         if self.silver_at_r > self.r and self.silver_at_r < self.refl:
             materials += '''
-% Silver 
-mat silver -{silver.density) tmp {self.silver_T} rgb 10 10 10 burn 1
+% Silver
+mat silver -{silver_density} tmp {self.silver_T} rgb 10 10 10 burn 1
 47107.{refl_lib}  -0.51839    % Ag
 47109.{refl_lib}  -0.48161    % Ag
 '''
