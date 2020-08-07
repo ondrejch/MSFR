@@ -15,17 +15,20 @@ my_debug = False
 
 class MSFR(object):
     '''Molten Spherical chloride salt Fast Reactor'''
-    def __init__(self, r:float=300.0, refl:float=500.0, e:float=0.1083, salt="58%NaCl+42%UCl3"):
+    def __init__(self, r:float=300.0, refl:float=500.0, e:float=0.1083, salt="58%NaCl+42%UCl3", Ag_r:float=-1.0):
         if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
             raise ValueError("Bad parameters: ", r, refl, e)
 
         # core parameters
-        self.r:float       = r          # Core radius
-        self.refl:float    = refl       # Outer reflector thickness
-        self.salt_formula:str = salt    # Salt formula
+        self.r:float       = r          # Core radius [cm]
+        self.refl:float    = refl       # Outer reflector thickness [cm]
+        self.salt_formula:str  = salt   # Salt formula
+        self.silver_at_r:float = Ag_r   # Where to put silver semi-shpere [cm]
+        self.silver_d:float    = 0.05   # Thickness of silver semi-sphere [cm]
         self.s             = Salt(self.salt_formula, e) # Salt used
         self.s.set_chlorine_37Cl_fraction(0.99999)      # Enriched chlorine-37
         self.tempK:float   = 900.0      # Salt temperature [K]
+        self.silver_T:float= self.tempK - 50   # Temperature of the silver wire [K]
         self.power:float   = 3e9        # Core thermal power [W]
         self.deplete:float = 0          # Depletion flag, hacky, see code!
                                         # 0 - no depletion, then in years
@@ -48,8 +51,16 @@ class MSFR(object):
         cells = '''
 %______________cell definitions_____________________________________
 cell 11  0  fuelsalt  -1      % fuel salt
-cell 31  0  refl       1 -2   % reflector
+cell 31  0  refl       1 -2   % reflector'''
+        if self.silver_at_r <= self.r:
+            cells += '''
 cell 99  0  outside    2      % graveyard
+'''
+        else:
+            cells += '''
+cell 20  0  silver     2 -3   % silver 
+cell 32  0  refl       3 -4   % reflector
+cell 99  0  outside    4      % graveyard
 '''
         return cells.format(**locals())
 
@@ -57,8 +68,17 @@ cell 99  0  outside    2      % graveyard
         'Surface cards for Serpent input deck'
         surfaces = '''
 %______________surface definitions__________________________________
-surf 1   sph  0.0 0.0 0.0 {self.r}      % fuel salt radius
+surf 1   sph  0.0 0.0 0.0 {self.r}      % fuel salt radius'''
+        if self.silver_at_r <= self.r:
+            surfaces += '''
 surf 2   sph  0.0 0.0 0.0 {self.refl}   % reflector
+'''
+        else:
+            silver_r_max = self.silver_at_r + self.silver_d
+            surfaces += '''
+surf 2   sph  0.0 0.0 0.0 {self.silver_at_r}   % reflector
+surf 3   sph  0.0 0.0 0.0 {silver_r_max}       % silver
+surf 4   sph  0.0 0.0 0.0 {self.refl}   % reflector
 '''
         return surfaces.format(**locals())
 
@@ -72,6 +92,20 @@ mat refl   -7.68435 tmp 900 rgb 128 128 178
 26056.{refl_lib}  -0.917540   %  Fe
 26057.{refl_lib}  -0.021190   %  Fe
 26058.{refl_lib}  -0.002820   %  Fe
+'''
+# https://www.sciencedirect.com/science/article/abs/pii/0022190262801882
+        silver_density = 10.465 - 9.967e-4*self.silver_T # [g/cm^3]
+        
+        if self.silver_at_r > 0.0 and self.silver_at_r <= self.r:
+            raise ValueError('Silver shell inside fuel ', self.silver_at_r, self.r)
+        if self.silver_at_r >= self.refl:
+            raise ValueError('Silver shell outside reflector ', self.silver_at_r, self.refl)
+        if self.silver_at_r > self.r and self.silver_at_r < self.refl:
+            materials += '''
+% Silver 
+mat silver -{silver.density) tmp {self.silver_T} rgb 10 10 10 burn 1
+47107.{refl_lib}  -0.51839    % Ag
+47109.{refl_lib}  -0.48161    % Ag
 '''
         return materials.format(**locals())
 
