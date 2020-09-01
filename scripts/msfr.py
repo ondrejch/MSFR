@@ -34,6 +34,7 @@ class MSFR(object):
                                         # 0 - no depletion, then in years
                                         # Can be 0, 1, 10, 20, 30, 40 ... n/10 years
         self.lib:str       = '09c'      # CE xsection temp selection
+        self.lib_ag:str    = '06c'      # CE xsection temp selection for silver
         self.queue:str     = 'gen6'     # NEcluster torque queue
         self.histories:int = 10000      # Neutron histories per cycle
         self.ompcores:int  = 16         # OMP core count
@@ -104,8 +105,8 @@ mat refl   -7.68435 tmp 900 rgb 128 128 178
             materials += '''
 % Silver
 mat silver -{silver_density} tmp {self.silver_T} rgb 10 10 10 burn 1
-47107.{refl_lib}  -0.51839    % Ag
-47109.{refl_lib}  -0.48161    % Ag
+47107.{self.lib_ag}  -0.51839    % Ag
+47109.{self.lib_ag}  -0.48161    % Ag
 '''
         return materials.format(**locals())
 
