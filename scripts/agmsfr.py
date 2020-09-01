@@ -68,10 +68,9 @@ class AgMSFR(object):
         if plot_file == None:
             plt.show()
         else:
-            my_file = self.plot_path + '/' + plot_file
-            if not os.path.exists(os.path.dirname(my_file)):
-                os.makedirs(os.path.dirname(my_file))
-            plt.savefig(my_file, bbox_inches='tight')
+            if not os.path.exists(os.path.dirname(plot_file)):
+                os.makedirs(os.path.dirname(plot_file))
+            plt.savefig(plot_file, bbox_inches='tight')
         plt.close()
 
 
