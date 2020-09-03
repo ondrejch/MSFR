@@ -38,6 +38,23 @@ class AgMSFR(object):
                 self.agtot[d]  = agsum
                 self.agfrac[d] = agsum / self.ag.getValues('days','adens',[d],['total'])[0,0]
 
+    def plot_agfrac(self, plot_file:str='./plot_Ag-frac.pdf', plot_title = ''):
+        'Make plot of Ag fraction remaining in Ag shell with bunrup'
+        if len(self.agfrac) < 2:
+            self.calc_agfrac()
+        fig = plt.plot(self.fd.days, self.agfrac.values(), color='silver', linewidth=2)
+        plt.legend(loc="best", fontsize="medium", title="Fraction of silver remaining in Ag shell")
+        plt.xlabel("time [d]")
+        if plot_title != '':
+            plt.title(plot_title)
+        if plot_file == None:
+            plt.show()
+        else:
+            if not os.path.exists(os.path.dirname(plot_file)):
+                os.makedirs(os.path.dirname(plot_file))
+            plt.savefig(plot_file, bbox_inches='tight')
+        plt.close()
+
     def calc_topisos(self):
         'Find top N isotopes at EOC for plotting purposes'
         #ag.getValues('days', 'adens', [ag.days[-1]] , ['Xe135'])[0,0]
@@ -52,10 +69,10 @@ class AgMSFR(object):
         # First N entries
         self.topisos = [ x[0] for x in sortedEOCiso[1:1+self.Ntopisos] ]
 
-    def plot_topisos(self,plot_file:str='plot.pdf', plot_title = ''):
-        'Make plot ot isotopoic evolution with burnup'
+    def plot_topisos(self, plot_file:str='./plot_Ag-iso.pdf', plot_title = ''):
+        'Make plot of isotopic evolution with burnup'
         if len(self.topisos) < 2:
-            self.topiso()           # Get top isotopes at EOC
+            self.calc_topisos()           # Get top isotopes at EOC
         fig = self.fd.plot('burnup','adens', materials=['silver'], names=self.topisos)
         plt.grid(True,which="both")
         if plot_title != '':
@@ -73,6 +90,37 @@ class AgMSFR(object):
             plt.savefig(plot_file, bbox_inches='tight')
         plt.close()
 
+    def plot_multi(self, plot_file:str='./plot.pdf', plot_title = ''):
+        'Multiplot'
+        if len(self.topisos) < 2:
+            self.calc_topisos()
+        if len(self.agfrac) < 2:
+            self.calc_agfrac()
+        plt.figure(figsize=(7,10))
+        plt.subplot(211)
+        fig = plt.plot(self.fd.days, self.agfrac.values(), color='silver', linewidth=2)
+        plt.xlabel("time [d]")
+        plt.legend(loc="best", fontsize="medium", title="Fraction of silver remaining in Ag shell")
+        if plot_title != '':
+            plt.title(plot_title)
+        plt.subplot(212)
+        fig = self.fd.plot('burnup','adens', materials=['silver'], names=self.topisos)
+        plt.grid(True,which="both")
+        plt.legend(loc="best", fontsize="medium", title="Isotopes in silver")
+        plt.yscale('log')
+        (ymin, ymax) = fig.get_ylim()
+        ymin = 1e-7
+        plt.ylim(ymin, ymax)
+
+        if plot_file == None:
+            plt.show()
+        else:
+            if not os.path.exists(os.path.dirname(plot_file)):
+                os.makedirs(os.path.dirname(plot_file))
+            plt.savefig(plot_file, bbox_inches='tight')
+        plt.close()
+
+# ------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     print("This module analyzes MSFR with silver.")
