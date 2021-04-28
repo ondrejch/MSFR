@@ -13,20 +13,9 @@ do_plots = False
 my_debug = False
 
 
-class MSFR(object):
-    '''Molten Spherical chloride salt Fast Reactor'''
-    def __init__(self, r:float=300.0, refl:float=500.0, e:float=0.1083, salt="58%NaCl+42%UCl3", Ag_r:float=-1.0):
-        if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
-            raise ValueError("Bad parameters: ", r, refl, e)
-
-        # core parameters
-        self.r:float       = r          # Core radius [cm]
-        self.refl:float    = refl       # Outer reflector thickness [cm]
-        self.salt_formula:str  = salt   # Salt formula
-        self.silver_at_r:float = Ag_r   # Where to put silver semi-shpere [cm]
-        self.silver_d:float    = 0.05   # Thickness of silver semi-sphere [cm]
-        self.s             = Salt(self.salt_formula, e) # Salt used
-        self.s.set_chlorine_37Cl_fraction(0.99999)      # Enriched chlorine-37
+class MSFRbase(object):
+    '''Common base class for the MSFR project'''
+    def __init__(self):
         self.tempK:float   = 900.0      # Salt temperature [K]
         self.silver_T:float= self.tempK - 50   # Temperature of the silver wire [K]
         self.power:float   = 3e9        # Core thermal power [W]
@@ -41,6 +30,70 @@ class MSFR(object):
         self.deck_name:str = 'msfr'     # Serpent input file name
         self.deck_path:str = '/tmp'     # Where to run the lattice deck
         self.qsub_file:str = os.path.expanduser('~/') + '/run.sh'  # qsub script path
+
+    def save_deck(self):
+        'Saves Serpent deck into an input file'
+        try:
+            os.makedirs(self.deck_path, exist_ok = True)
+            fh = open(self.deck_path + '/' + self.deck_name, 'w')
+            fh.write(self.get_deck())
+            fh.close()
+        except IOError as e:
+            print("[ERROR] Unable to write to deck file: ",
+                  self.deck_path + '/' + self.deck_name)
+            print(e)
+
+    def save_qsub_file(self):
+        'Writes run file for TORQUE.'
+        qsub_content = '''#!/bin/bash
+#PBS -V
+#PBS -N MSFR_S2
+#PBS -q {self.queue}
+#PBS -l nodes=1:ppn={self.ompcores}
+
+hostname
+rm -f done.dat
+cd ${{PBS_O_WORKDIR}}
+module load mpi
+module load serpent
+
+sss2 -omp {self.ompcores} {self.deck_name} > myout.out
+awk 'BEGIN{{ORS="\\t"}} /ANA_KEFF/ || /CONVERSION/ {{print $7" "$8;}}' {self.deck_name}_res.m > done.out
+#rm {self.deck_name}.out
+'''.format(**locals())
+        try:                # Write the deck
+            f = open(self.qsub_file, 'w')
+            f.write(qsub_content)
+            f.close()
+        except IOError as e:
+            print("Unable to write to qsub file", f)
+            print(e)
+
+    def run_deck(self):
+        'Runs the deck using qsub_file script'
+        if self.queue == 'local':    # Run the deck locally
+            os.chdir(self.deck_path)
+            os.system(self.qsub_file)
+        else:               # Submit the job on the cluster
+            os.system('cd ' + self.deck_path + ' && qsub ' + self.qsub_file)
+
+
+
+class MSFR(MSFRbase):
+    '''Molten Spherical chloride salt Fast Reactor'''
+    def __init__(self, r:float=300.0, refl:float=500.0, e:float=0.1083, salt="58%NaCl+42%UCl3", Ag_r:float=-1.0):
+        if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
+            raise ValueError("Bad parameters: ", r, refl, e)
+
+        MSFRbase.__init__(self)         # in Python one has to initilize parent class explicitly
+        # core parameters
+        self.r:float       = r          # Core radius [cm]
+        self.refl:float    = refl       # Outer reflector thickness [cm]
+        self.salt_formula:str  = salt   # Salt formula
+        self.silver_at_r:float = Ag_r   # Where to put silver semi-shpere [cm]
+        self.silver_d:float    = 0.05   # Thickness of silver semi-sphere [cm]
+        self.s             = Salt(self.salt_formula, e) # Salt used
+        self.s.set_chlorine_37Cl_fraction(0.99999)      # Enriched chlorine-37
 
     def salt_volume(self) -> float:
         '''Get salt volume, twice the fuel sphere volume'''
@@ -261,53 +314,6 @@ set title "sphMCFR radius {self.r}, reflector {self.refl}"
             for i in range((self.deplete - 10) // 10):
                 deck += self.get_depl_add_10years()
         return deck.format(**locals())
-
-    def save_deck(self):
-        'Saves Serpent deck into an input file'
-        try:
-            os.makedirs(self.deck_path, exist_ok = True)
-            fh = open(self.deck_path + '/' + self.deck_name, 'w')
-            fh.write(self.get_deck())
-            fh.close()
-        except IOError as e:
-            print("[ERROR] Unable to write to deck file: ",
-                  self.deck_path + '/' + self.deck_name)
-            print(e)
-
-    def save_qsub_file(self):
-        'Writes run file for TORQUE.'
-        qsub_content = '''#!/bin/bash
-#PBS -V
-#PBS -N MSFR_S2
-#PBS -q {self.queue}
-#PBS -l nodes=1:ppn={self.ompcores}
-
-hostname
-rm -f done.dat
-cd ${{PBS_O_WORKDIR}}
-module load mpi
-module load serpent
-
-sss2 -omp {self.ompcores} {self.deck_name} > myout.out
-awk 'BEGIN{{ORS="\\t"}} /ANA_KEFF/ || /CONVERSION/ {{print $7" "$8;}}' {self.deck_name}_res.m > done.out
-#rm {self.deck_name}.out
-'''.format(**locals())
-        try:                # Write the deck
-            f = open(self.qsub_file, 'w')
-            f.write(qsub_content)
-            f.close()
-        except IOError as e:
-            print("Unable to write to qsub file", f)
-            print(e)
-
-    def run_deck(self):
-        'Runs the deck using qsub_file script'
-        if self.queue == 'local':    # Run the deck locally
-            os.chdir(self.deck_path)
-            os.system(self.qsub_file)
-        else:               # Submit the job on the cluster
-            os.system('cd ' + self.deck_path + ' && qsub ' + self.qsub_file)
-
 
 def liquidusNaClUCl3(xUCl3:float) -> float:
     '''Returns liquidus temperature of NaCl-LiCl3 based on
