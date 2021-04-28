@@ -8,6 +8,7 @@ import os
 import math
 from scipy import interpolate
 from salts import Salt
+import serpentTools
 
 do_plots = False
 my_debug = False
@@ -93,7 +94,7 @@ class AgWire(MSFRbase):
         '''Open the depeltion file and load the fuel data. Make sure that data path and names are 
         set correctly in the parent class'''
         dep = serpentTools.read(self.deck_path + '/' + self.deck_name + '_dep.m')
-        fuel = dep.materials['fuel']
+        fuel = dep.materials['fuelsalt']
 
     def volume_wire(self) -> float:
         '''Calculates the wire volume'''
