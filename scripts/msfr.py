@@ -77,6 +77,89 @@ awk 'BEGIN{{ORS="\\t"}} /ANA_KEFF/ || /CONVERSION/ {{print $7" "$8;}}' {self.dec
         else:               # Submit the job on the cluster
             os.system('cd ' + self.deck_path + ' && qsub ' + self.qsub_file)
 
+class AgWire(MSFRbase):
+    '''Silver wire depleted in MSFR fuel salt'''
+    def __init__(self, wr:float = 0.2, case='submerged'):
+        self.wr:float = wr      # wire radius [cm]
+        self.fh:float = 100.0   # half-leght of salt cylinder [cm]
+        self.fr:float = 2.0     # radius of the salt cylinder [cm]
+        if(self.fr < 2.0*self.wr):  
+            self.fr = 2.0*self.wr   # salt cylinder needs to be at least 2x the wire one
+        MSFRbase.__init__(self) # in Python one has to initilize parent class explicitly
+        self.dep  = None        # depletion object from baseline depletion
+        self.fuel = None        # fuel object from baseline depletion
+        
+    def load_data(self):
+        '''Open the depeltion file and load the fuel data. Make sure that data path and names are 
+        set correctly in the parent class'''
+        dep = serpentTools.read(self.deck_path + '/' + self.deck_name + '_dep.m')
+        fuel = dep.materials['fuel']
+
+    def volume_wire(self) -> float:
+        '''Calculates the wire volume'''
+        return math.pi * self.wr**2 * 2.0*self.fh
+
+    def volume_fuel(self) -> float:
+        '''Calculates the fuel salt volume'''
+        return math.pi * 2.0*self.fh * (self.fr**2 - self.wr**2)
+
+    def wire_deck(self, step:int=1) -> str:
+        '''Returns wire-in-salt Serpent input deck for a particular step calculation'''
+        if(step < 1):
+            return 'Error: step has to be >= 1, value passed: ' + step
+        v_wire = self.volume_wire()
+        v_fuel = self.volume_fuel()
+        day = self.fuel.days[step]
+        prevstep = step - 1
+        prevday  = self.fuel.days[prevday]
+        output = f'''set title "Activated wire in decaying fuel"
+
+% --- surfaces ---
+surf 1   cylx  0.0 0.0 {self.wr} -{self.fh}  100.0    % inner wire
+surf 2   cylx  0.0 0.0 {self.fr} -100.0 100.0    % fuel cylinder
+
+% --- cells ---
+cell 10  0  testwire   -1      % test wire
+cell 11  0  fuel        1 -2   % fuel salt
+cell 99  0  outside     2      % graveyard
+
+% Al wire
+mat testwire -2.7 burn 1
+13027.03c 1
+
+% Volumes
+set mvol fuel     0   3298.67228627
+set mvol testwire 0   628.318530718
+
+% Depletion
+set inventory all
+dep daytot {day}
+
+% Data Libraries
+set acelib "/opt/JEFF-3.3/sss_jeff33.xsdir"
+set declib "/opt/JEFF-3.3/jeff33.dec"
+set nfylib "/opt/JEFF-3.3/jeff33.nfy"
+
+% Read binary restart file
+set rfw 1'''
+        if step >1:
+            output += f'''
+set rfr -{prevday} "step{prevstep}.wrk"'''
+
+        output += f'''
+
+% Radioactive decay source:
+src 1 n sg fuel 1
+
+% Options:
+set gcu -1
+set nps 10000000
+
+% --- materials ---
+mat fuel sum fix "{self.lib}" {self.tempK}
+'''
+
+
 
 
 class MSFR(MSFRbase):
