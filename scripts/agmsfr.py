@@ -11,21 +11,21 @@ import serpentTools
 class AgWireAnalyzer(object):
     'Silver wire in depleted salt analysis class'
     def __init__(self, _deckname:str = '/full/path/to/msfr'):
-        self.d0   = serpentTools.read(self.deck_name + "_dep.m")
-        self.fuel = self.d0.materials['fuel']
+        self.d0   = serpentTools.read(_deckname + '_dep.m')
+        self.fuel = self.d0.materials['fuelsalt']
         self.wires = []
         self.wdeps = []
         self.wdeck_path:str = '/tmp'        # Path to wire depletion decks
         self.wdeck_name:str = 'wire_step'   # Wire depletion steps base name
         self.Ntopisos       = 10    # How many isotopes to plot
         self.topisos        = []    # List of the top EOC isotopes
-        self.adata = np.zeros(len(seld.fuel.days)*self.Ntopisos). \
+        self.adata = np.zeros(len(self.fuel.days)*self.Ntopisos). \
             reshape(len(self.fuel.days), self.Ntopisos)
 
     def read_wires(self):
         'Read all wire input decks'
-        for step in range(1,len(fuel.days)):
-            fname = f'{self.wdeck_path}/{self.wdeck_name}-{step:03d}'
+        for step in range(1,len(self.fuel.days)):
+            fname = f'{self.wdeck_path}/{self.wdeck_name}-{step:03d}_dep.m'
             #print(fname)
             d = serpentTools.read(fname)
             w = d.materials['silver']
@@ -55,15 +55,23 @@ class AgWireAnalyzer(object):
             for iso in self.topisos:
                 atomdensity = self.wires[step-1].getValues('days', 'adens', [self.wires[step-1].days[-1]], [iso])[0,0]
                 # print(step, iso, atomdensity)
-                adata[step, self.topisos.index(iso)] = atomdensity
+                self.adata[step, self.topisos.index(iso)] = atomdensity
+
+    def burnup2days(self,x:float) -> float:
+        return np.interp(x, self.d0.burnup, self.fuel.days)
+
+    def days2burnup(self,x:float) -> float:
+        return np.interp(x, self.fuel.days, self.d0.burnup)
 
     def plot_topisos(self, plot_file:str='./plot_wire-Ag-iso.pdf', plot_title = ''):
         'Make plot of isotopic evolution with burnup'
         fig = plt.figure()
-        myplot = serpentTools.plot.plot(self.fuel.burnup, self.adata, labels=self.topisos)
-        myplot.set_xlabel("Burnup [MWd/kgHM]")
+        myplot = serpentTools.plot.plot(self.d0.burnup, self.adata, labels=self.topisos)
+        myplot.set_xlabel('Burnup [MWd/kgHM]')
         myplot.set_ylabel("Atom density [10$^{24}$/cm$^{3}$]")
         myplot.set_yscale('log')
+        secax = myplot.secondary_xaxis('top', functions=(self.burnup2days, self.days2burnup))
+        secax.set_xlabel('EFPD [days]')
         if plot_title != '':
             plt.title(plot_title)
         if plot_file == None:
@@ -74,6 +82,11 @@ class AgWireAnalyzer(object):
             plt.savefig(plot_file, bbox_inches='tight')
         plt.close()
 
+'''
+import agmsfr
+aa = agmsfr.AgWireAnalyzer("/home/o/UTK/research/ARPA-E_Pump_ORNL/silver/msfr_dev/msfr")
+aa.read_wires()
+'''
 
 class AgMSFRAnalyzer(object):
     'Silver in MSFR shell depletion analysis class'
