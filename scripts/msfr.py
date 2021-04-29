@@ -18,7 +18,8 @@ class MSFRbase(object):
     '''Common base class for the MSFR project'''
     def __init__(self):
         self.tempK:float   = 900.0      # Salt temperature [K]
-        self.silver_T:float= self.tempK + 50   # Temperature of the silver wire [K]
+        self.silver_T:float= self.tempK + 10   # Temperature of the silver wire [K]
+        # The wire is assumed hotter as the salt is the coolant
         self.power:float   = 3e9        # Core thermal power [W]
         self.deplete:float = 0          # Depletion flag, hacky, see code!
                                         # 0 - no depletion, then in years
@@ -29,7 +30,7 @@ class MSFRbase(object):
         self.histories:int = 10000      # Neutron histories per cycle
         self.ompcores:int  = 16         # OMP core count
         self.deck_name:str = 'msfr'     # Serpent input file name
-        self.deck_path:str = '/tmp'     # Where to run the lattice deck
+        self.deck_path:str = '/tmp'     # Where to run the Serpent deck
         self.qsub_file:str = os.path.expanduser('~/') + '/run.sh'  # qsub script path
 
     def rho_silver(self) -> float:
@@ -150,7 +151,7 @@ set nfylib "/opt/JEFF-3.3/jeff33.nfy"
 
 % Read binary restart file
 set rfw 1'''
-        if step >1:
+        if step > 1:
             output += f'''
 set rfr -{prevday} "wire_step-{prevstep:03d}.wrk"'''
 
