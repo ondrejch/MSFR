@@ -70,8 +70,11 @@ class AgWireAnalyzer(object):
         myplot.set_xlabel('Burnup [MWd/kgHM]')
         myplot.set_ylabel("Atom density [10$^{24}$/cm$^{3}$]")
         myplot.set_yscale('log')
-        secax = myplot.secondary_xaxis('top', functions=(self.burnup2days, self.days2burnup))
-        secax.set_xlabel('EFPD [days]')
+#        secax = myplot.secondary_xaxis('top', functions=(self.burnup2days, self.days2burnup))
+#        secax.set_xlabel('EFPD [days]')
+        (ymin, ymax) = myplot.get_ylim()
+        ymin = 1e-12
+        plt.ylim(ymin, ymax)
         if plot_title != '':
             plt.title(plot_title)
         if plot_file == None:
@@ -85,6 +88,7 @@ class AgWireAnalyzer(object):
 '''
 import agmsfr
 aa = agmsfr.AgWireAnalyzer("/home/o/UTK/research/ARPA-E_Pump_ORNL/silver/msfr_dev/msfr")
+aa.wdeck_path="/home/o/UTK/research/ARPA-E_Pump_ORNL/silver/msfr_dev/"                      
 aa.read_wires()
 '''
 
