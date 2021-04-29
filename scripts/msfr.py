@@ -18,13 +18,13 @@ class MSFRbase(object):
     '''Common base class for the MSFR project'''
     def __init__(self):
         self.tempK:float   = 900.0      # Salt temperature [K]
-        self.silver_T:float= self.tempK - 50   # Temperature of the silver wire [K]
+        self.silver_T:float= self.tempK + 50   # Temperature of the silver wire [K]
         self.power:float   = 3e9        # Core thermal power [W]
         self.deplete:float = 0          # Depletion flag, hacky, see code!
                                         # 0 - no depletion, then in years
                                         # Can be 0, 1, 10, 20, 30, 40 ... n/10 years
         self.lib:str       = '09c'      # CE xsection temp selection
-        self.lib_ag:str    = '06c'      # CE xsection temp selection for silver
+        self.lib_ag:str    = '09c'      # CE xsection temp selection for silver
         self.queue:str     = 'gen6'     # NEcluster torque queue
         self.histories:int = 10000      # Neutron histories per cycle
         self.ompcores:int  = 16         # OMP core count
@@ -36,10 +36,10 @@ class MSFRbase(object):
         # https://www.sciencedirect.com/science/article/abs/pii/0022190262801882
         return 10.465 - 9.967e-4*self.silver_T # [g/cm^3]
 
-    def matdeck_silver(self) -> str:
+    def matdeck_silver(self, mat_name:str='silver', burn:int=1) -> str:
         return f'''
 % Silver
-mat silver -{self.rho_silver()} tmp {self.silver_T} rgb 10 10 10 burn 1
+mat {mat_name} -{self.rho_silver()} tmp {self.silver_T} rgb 10 10 10 burn {burn}
 47107.{self.lib_ag}  -0.51839    % Ag
 47109.{self.lib_ag}  -0.48161    % Ag
 '''
@@ -53,17 +53,23 @@ mat silver -{self.rho_silver()} tmp {self.silver_T} rgb 10 10 10 burn 1
             os.system('cd ' + self.deck_path + ' && qsub ' + self.qsub_file)
 
 
+AGWIRE_CASES = ['fully-submerged', 'half-submerged']
+
 class AgWire(MSFRbase):
     '''Silver wire depleted in MSFR fuel salt'''
-    def __init__(self, wr:float = 0.2, case='submerged'):
+    def __init__(self, wr:float = 0.2, case:str='fully-submerged'):
+        if case in AGWIRE_CASES:
+            self.case = case
+        else:
+            raise ValueError('Wrong case' + case)
         self.wr:float = wr      # wire radius [cm]
-        self.fh:float = 100.0   # half-leght of salt cylinder [cm]
+        self.fh:float = 100.0   # half-length of salt cylinder [cm]
         self.fr:float = 2.0     # radius of the salt cylinder [cm]
         if(self.fr < 2.0*self.wr):
             self.fr = 2.0*self.wr   # salt cylinder needs to be at least 2x the wire one
-        MSFRbase.__init__(self) # in Python one has to initialize parent class explicitly
-        self.dep  = None        # depletion object from baseline depletion
-        self.fuel = None        # fuel object from baseline depletion
+        MSFRbase.__init__(self) # in Python the parent class needs explicit initialization
+        self.dep  = None        # depletion object from the baseline depletion case
+        self.fuel = None        # fuel object from the baseline depletion
         self.wdeck_name:str = 'wire_step' # name of input deck for wire depletion steps
         self.qsub_file:str = os.path.expanduser('~/') + '/runwire.sh' # qsub script path
 
@@ -88,8 +94,9 @@ class AgWire(MSFRbase):
         prevstep = step - 1
         day      = self.fuel.days[step]
         prevday  = self.fuel.days[prevstep]
-        output = f'''set title "Activated wire in decaying fuel"
-
+        output = 'set title "Activated wire in decaying fuel"\n'
+        if self.case == 'fully-submerged':
+            output += '''
 % --- surfaces ---
 surf 1   cylx  0.0 0.0 {self.wr} -{self.fh} {self.fh}    % inner wire
 surf 2   cylx  0.0 0.0 {self.fr} -{self.fh} {self.fh}    % fuel cylinder
@@ -99,7 +106,22 @@ cell 10  0  silver  -1      % wire
 cell 11  0  fuel     1 -2   % fuel salt
 cell 99  0  outside  2      % graveyard
 '''
-        output += self.matdeck_silver()
+        if self.case == 'half-submerged':
+            output += '''
+% --- surfaces ---
+surf 1   cylx  0.0 0.0 {self.wr} -{self.fh} {self.fh}    % inner wire
+surf 2   cylx  0.0 0.0 {self.fr} -{self.fh} {self.fh}    % fuel cylinder
+surf 3   pz    0
+
+% --- cells ---
+cell 10  0  silver  -1        % wire
+cell 11  0  fuel     1 -2  3  % fuel salt
+cell 12  0  r-silver 1 -2 -3  % reflector silver, nondepleting
+cell 99  0  outside  2        % graveyard
+'''
+        output += self.matdeck_silver()         # silver wire
+        if self.case == 'half-submerged':       # surrounding silver
+            output += self.matdeck_silver('r-silver',0)
         output += f'''
 % Volumes
 set mvol fuel   0  {self.volume_fuel()}
@@ -197,10 +219,10 @@ class MSFR(MSFRbase):
         if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
             raise ValueError("Bad parameters: ", r, refl, e)
 
-        MSFRbase.__init__(self)         # in Python one has to initialize parent class explicitly
+        MSFRbase.__init__(self)         # in Python the parent class needs explicit initialization
         # core parameters
-        self.r:float       = r          # Core radius [cm]
-        self.refl:float    = refl       # Outer reflector thickness [cm]
+        self.r:float           = r      # Core radius [cm]
+        self.refl:float        = refl   # Outer reflector thickness [cm]
         self.salt_formula:str  = salt   # Salt formula
         self.silver_at_r:float = Ag_r   # Where to put silver semi-shpere [cm]
         self.silver_d:float    = 0.05   # Thickness of silver semi-sphere [cm]
