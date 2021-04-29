@@ -32,6 +32,17 @@ class MSFRbase(object):
         self.deck_path:str = '/tmp'     # Where to run the lattice deck
         self.qsub_file:str = os.path.expanduser('~/') + '/run.sh'  # qsub script path
 
+    def rho_silver(self) -> float:
+        # https://www.sciencedirect.com/science/article/abs/pii/0022190262801882
+        return 10.465 - 9.967e-4*self.silver_T # [g/cm^3]
+
+    def matdeck_silver(self) -> str:
+        return f'''
+% Silver
+mat silver -{self.rho_silver()} tmp {self.silver_T} rgb 10 10 10 burn 1
+47107.{self.lib_ag}  -0.51839    % Ag
+47109.{self.lib_ag}  -0.48161    % Ag
+'''
 
     def run_deck(self):
         'Runs the deck using qsub_file script'
@@ -40,6 +51,7 @@ class MSFRbase(object):
             os.system(self.qsub_file)
         else:               # Submit the job on the cluster
             os.system('cd ' + self.deck_path + ' && qsub ' + self.qsub_file)
+
 
 class AgWire(MSFRbase):
     '''Silver wire depleted in MSFR fuel salt'''
@@ -83,17 +95,15 @@ surf 1   cylx  0.0 0.0 {self.wr} -{self.fh} {self.fh}    % inner wire
 surf 2   cylx  0.0 0.0 {self.fr} -{self.fh} {self.fh}    % fuel cylinder
 
 % --- cells ---
-cell 10  0  wire    -1      % wire
+cell 10  0  silver  -1      % wire
 cell 11  0  fuel     1 -2   % fuel salt
 cell 99  0  outside  2      % graveyard
-
-% Al wire
-mat testwire -2.7 burn 1
-13027.03c 1
-
+'''
+        output += self.matdeck_silver()
+        output += f'''
 % Volumes
-set mvol fuel 0  {self.volume_fuel()}
-set mvol wire 0  {self.volume_wire()}
+set mvol fuel   0  {self.volume_fuel()}
+set mvol silver 0  {self.volume_wire()}
 
 % Depletion
 set inventory all
@@ -140,8 +150,7 @@ mat fuel sum fix "{self.lib}" {self.tempK}
             else:           # isotopes without xs data: ZAI
                 isoID = str(zai)
             if atomdensity: # skip 0 atom densities
-                output += f'''{isoID}    {atomdensity}
-'''
+                output += f'{isoID}    {atomdensity}\n'
         return output
 
     def save_decks(self):
@@ -167,7 +176,7 @@ mat fuel sum fix "{self.lib}" {self.tempK}
 #PBS -l nodes=1:ppn=64
 
 hostname
-rm -f done.dat
+rm -f donewire.dat
 cd ${PBS_O_WORKDIR}
 module load mpi
 module load serpent
@@ -250,20 +259,14 @@ mat refl   -7.68435 tmp 900 rgb 128 128 178
 26057.{refl_lib}  -0.021190   %  Fe
 26058.{refl_lib}  -0.002820   %  Fe
 '''
-# https://www.sciencedirect.com/science/article/abs/pii/0022190262801882
-        silver_density = 10.465 - 9.967e-4*self.silver_T # [g/cm^3]
 
         if self.silver_at_r > 0.0 and self.silver_at_r <= self.r:
             raise ValueError('Silver shell inside fuel ', self.silver_at_r, self.r)
         if self.silver_at_r >= self.refl:
             raise ValueError('Silver shell outside reflector ', self.silver_at_r, self.refl)
         if self.silver_at_r > self.r and self.silver_at_r < self.refl:
-            materials += '''
-% Silver
-mat silver -{silver_density} tmp {self.silver_T} rgb 10 10 10 burn 1
-47107.{self.lib_ag}  -0.51839    % Ag
-47109.{self.lib_ag}  -0.48161    % Ag
-'''
+            materials += self.matdeck_silver()
+
         return materials.format(**locals())
 
     def get_data_cards(self) -> str:
