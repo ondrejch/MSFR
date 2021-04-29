@@ -177,7 +177,7 @@ module load serpent
             print(e)
         for step in range(1, len(self.fuel.days)):
             frun.write(f'''
-sss2 -omp 64 step{step} > myout_{step}.out''')
+sss2 -omp 64 {self.wdeck_name}-{step:03d} > myout_{step:03d}.out''')
         frun.write('\n')
         frun.close()
 
