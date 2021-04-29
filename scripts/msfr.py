@@ -32,43 +32,6 @@ class MSFRbase(object):
         self.deck_path:str = '/tmp'     # Where to run the lattice deck
         self.qsub_file:str = os.path.expanduser('~/') + '/run.sh'  # qsub script path
 
-    def save_deck(self):
-        'Saves Serpent deck into an input file'
-        try:
-            os.makedirs(self.deck_path, exist_ok = True)
-            fh = open(self.deck_path + '/' + self.deck_name, 'w')
-            fh.write(self.get_deck())
-            fh.close()
-        except IOError as e:
-            print("[ERROR] Unable to write to deck file: ",
-                  self.deck_path + '/' + self.deck_name)
-            print(e)
-
-    def save_qsub_file(self):
-        'Writes run file for TORQUE.'
-        qsub_content = '''#!/bin/bash
-#PBS -V
-#PBS -N MSFR_S2
-#PBS -q {self.queue}
-#PBS -l nodes=1:ppn={self.ompcores}
-
-hostname
-rm -f done.dat
-cd ${{PBS_O_WORKDIR}}
-module load mpi
-module load serpent
-
-sss2 -omp {self.ompcores} {self.deck_name} > myout.out
-awk 'BEGIN{{ORS="\\t"}} /ANA_KEFF/ || /CONVERSION/ {{print $7" "$8;}}' {self.deck_name}_res.m > done.out
-#rm {self.deck_name}.out
-'''.format(**locals())
-        try:                # Write the deck
-            f = open(self.qsub_file, 'w')
-            f.write(qsub_content)
-            f.close()
-        except IOError as e:
-            print("Unable to write to qsub file", f)
-            print(e)
 
     def run_deck(self):
         'Runs the deck using qsub_file script'
@@ -84,17 +47,19 @@ class AgWire(MSFRbase):
         self.wr:float = wr      # wire radius [cm]
         self.fh:float = 100.0   # half-leght of salt cylinder [cm]
         self.fr:float = 2.0     # radius of the salt cylinder [cm]
-        if(self.fr < 2.0*self.wr):  
+        if(self.fr < 2.0*self.wr):
             self.fr = 2.0*self.wr   # salt cylinder needs to be at least 2x the wire one
-        MSFRbase.__init__(self) # in Python one has to initilize parent class explicitly
+        MSFRbase.__init__(self) # in Python one has to initialize parent class explicitly
         self.dep  = None        # depletion object from baseline depletion
         self.fuel = None        # fuel object from baseline depletion
-        
+        self.wdeck_name:str = 'wire_step' # name of input deck for wire depletion steps
+        self.qsub_file:str = os.path.expanduser('~/') + '/runwire.sh' # qsub script path
+
     def load_data(self):
-        '''Open the depeltion file and load the fuel data. Make sure that data path and names are 
+        '''Open the depeltion file and load the fuel data. Make sure that data path and names are
         set correctly in the parent class'''
-        dep = serpentTools.read(self.deck_path + '/' + self.deck_name + '_dep.m')
-        fuel = dep.materials['fuelsalt']
+        self.dep = serpentTools.read(self.deck_path + '/' + self.deck_name + '_dep.m')
+        self.fuel = self.dep.materials['fuelsalt']
 
     def volume_wire(self) -> float:
         '''Calculates the wire volume'''
@@ -107,30 +72,28 @@ class AgWire(MSFRbase):
     def wire_deck(self, step:int=1) -> str:
         '''Returns wire-in-salt Serpent input deck for a particular step calculation'''
         if(step < 1):
-            return 'Error: step has to be >= 1, value passed: ' + step
-        v_wire = self.volume_wire()
-        v_fuel = self.volume_fuel()
-        day = self.fuel.days[step]
+            return 'Error: step has to be >= 1, value passed: ' + str(step)
         prevstep = step - 1
-        prevday  = self.fuel.days[prevday]
+        day      = self.fuel.days[step]
+        prevday  = self.fuel.days[prevstep]
         output = f'''set title "Activated wire in decaying fuel"
 
 % --- surfaces ---
-surf 1   cylx  0.0 0.0 {self.wr} -{self.fh}  100.0    % inner wire
-surf 2   cylx  0.0 0.0 {self.fr} -100.0 100.0    % fuel cylinder
+surf 1   cylx  0.0 0.0 {self.wr} -{self.fh} {self.fh}    % inner wire
+surf 2   cylx  0.0 0.0 {self.fr} -{self.fh} {self.fh}    % fuel cylinder
 
 % --- cells ---
-cell 10  0  testwire   -1      % test wire
-cell 11  0  fuel        1 -2   % fuel salt
-cell 99  0  outside     2      % graveyard
+cell 10  0  wire    -1      % wire
+cell 11  0  fuel     1 -2   % fuel salt
+cell 99  0  outside  2      % graveyard
 
 % Al wire
 mat testwire -2.7 burn 1
 13027.03c 1
 
 % Volumes
-set mvol fuel     0   3298.67228627
-set mvol testwire 0   628.318530718
+set mvol fuel 0  {self.volume_fuel()}
+set mvol wire 0  {self.volume_wire()}
 
 % Depletion
 set inventory all
@@ -159,8 +122,64 @@ set nps 10000000
 % --- materials ---
 mat fuel sum fix "{self.lib}" {self.tempK}
 '''
+        # Write material composition for burned fuel
+        iso_has_xs:bool = True
+        prevzai:int = 0
+        m_offset:int = 400  # isomer offset for ZA.id
+        for zai in self.fuel.zai:
+            if zai == 0:    # total
+                continue
+            if zai == 666:  # lost
+                continue
+            if zai < prevzai:   # once the ZADs stop increasing, nuclides without cross sections follow
+                iso_has_xs = False
+            atomdensity = float(self.fuel.getValues('days', 'adens', [day], zai=zai))
+            prevzai = zai
+            if iso_has_xs:  # isotopes with xs data: <ZZAAA with isome offset> . library
+                isoID = str(zai//10 + m_offset*(zai%10)) + "." + self.lib
+            else:           # isotopes without xs data: ZAI
+                isoID = str(zai)
+            if atomdensity: # skip 0 atom densities
+                output += f'''{isoID}    {atomdensity}
+'''
+        return output
 
+    def save_decks(self):
+        '''Writes input wire depletion to respective files'''
+        for step in range(1, len(self.fuel.days)):
+            fname = f'{self.deck_path}/{self.wdeck_name}-{step:03d}'
+            try:                # Write the deck
+                f = open(fname, 'w')
+                f.write(self.wire_deck(step))
+                f.close()
+            except IOError as e:
+                print("Unable to write to file", fname)
+                print(e)
 
+    def save_qsub_file(self):
+        '''Writes qsub file to run all steps. They have to be run consecutively.'''
+        try:                # Write the script
+            frun = open(self.qsub_file, 'w')
+            frun.write('''#!/bin/bash
+#PBS -V
+#PBS -N S2-wire
+#PBS -q xeon
+#PBS -l nodes=1:ppn=64
+
+hostname
+rm -f done.dat
+cd ${PBS_O_WORKDIR}
+module load mpi
+module load serpent
+''')
+        except IOError as e:
+            print("Unable to write to file", fname)
+            print(e)
+        for step in range(1, len(self.fuel.days)):
+            frun.write(f'''
+sss2 -omp 64 step{step} > myout_{step}.out''')
+        frun.write('\n')
+        frun.close()
 
 
 class MSFR(MSFRbase):
@@ -169,7 +188,7 @@ class MSFR(MSFRbase):
         if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
             raise ValueError("Bad parameters: ", r, refl, e)
 
-        MSFRbase.__init__(self)         # in Python one has to initilize parent class explicitly
+        MSFRbase.__init__(self)         # in Python one has to initialize parent class explicitly
         # core parameters
         self.r:float       = r          # Core radius [cm]
         self.refl:float    = refl       # Outer reflector thickness [cm]
@@ -375,6 +394,44 @@ daystep
 120 120 120 120 120 120
 '''
         return depl_add_10years.format(**locals())
+
+    def save_deck(self):
+        'Saves Serpent deck into an input file'
+        try:
+            os.makedirs(self.deck_path, exist_ok = True)
+            fh = open(self.deck_path + '/' + self.deck_name, 'w')
+            fh.write(self.get_deck())
+            fh.close()
+        except IOError as e:
+            print("[ERROR] Unable to write to deck file: ",
+                  self.deck_path + '/' + self.deck_name)
+            print(e)
+
+    def save_qsub_file(self):
+        'Writes run file for TORQUE.'
+        qsub_content = '''#!/bin/bash
+#PBS -V
+#PBS -N MSFR_S2
+#PBS -q {self.queue}
+#PBS -l nodes=1:ppn={self.ompcores}
+
+hostname
+rm -f done.dat
+cd ${{PBS_O_WORKDIR}}
+module load mpi
+module load serpent
+
+sss2 -omp {self.ompcores} {self.deck_name} > myout.out
+awk 'BEGIN{{ORS="\\t"}} /ANA_KEFF/ || /CONVERSION/ {{print $7" "$8;}}' {self.deck_name}_res.m > done.out
+#rm {self.deck_name}.out
+'''.format(**locals())
+        try:                # Write the deck
+            f = open(self.qsub_file, 'w')
+            f.write(qsub_content)
+            f.close()
+        except IOError as e:
+            print("Unable to write to qsub file", f)
+            print(e)
 
     def get_deck(self) -> str:
         'Serpent deck for the lattice'
