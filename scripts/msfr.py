@@ -533,3 +533,21 @@ if __name__ == '__main__':
     mycore.save_deck()
     mycore.save_qsub_file()
     mycore.run_deck()
+
+'''
+import msfr
+w = msfr.AgWire()
+w.deck_path='/home/ondrejch/APump/MCFR/ag/jeff33-wire/run0'
+w.load_data()
+w.save_decks()
+w.save_qsub_file()
+
+
+import msfr
+w = msfr.AgWire('half-submerged')
+w.deck_path='/home/ondrejch/APump/MCFR/ag/jeff33-wire/run0/hs'
+w.load_data()
+w.save_decks()
+w.save_qsub_file()
+
+'''
