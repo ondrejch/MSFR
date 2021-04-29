@@ -126,7 +126,7 @@ cell 99  0  outside  2        % graveyard
         output += self.matdeck_silver()         # silver wire
         if self.case == 'half-submerged':       # surrounding silver
             output += self.matdeck_silver('r-silver',0)
-        if self.case === 'fuly-submerged':
+        if self.case == 'fuly-submerged':
             output += f'''
 % Volumes
 set mvol fuel   0  {self.volume_fuel()}
