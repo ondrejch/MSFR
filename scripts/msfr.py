@@ -37,9 +37,13 @@ class MSFRbase(object):
         return 10.465 - 9.967e-4*self.silver_T # [g/cm^3]
 
     def matdeck_silver(self, mat_name:str='silver', burn:int=1) -> str:
+        '''Retrns material cards for silver'''
+        rgb:str ="110 110 110"
+        if burn:
+            rgb:str ="210 210 210"
         return f'''
 % Silver
-mat {mat_name} -{self.rho_silver()} tmp {self.silver_T} rgb 10 10 10 burn {burn}
+mat {mat_name} -{self.rho_silver()} tmp {self.silver_T} rgb {rgb} burn {burn}
 47107.{self.lib_ag}  -0.51839    % Ag
 47109.{self.lib_ag}  -0.48161    % Ag
 '''
@@ -122,11 +126,19 @@ cell 99  0  outside  2        % graveyard
         output += self.matdeck_silver()         # silver wire
         if self.case == 'half-submerged':       # surrounding silver
             output += self.matdeck_silver('r-silver',0)
-        output += f'''
+        if self.case === 'fuly-submerged':
+            output += f'''
 % Volumes
 set mvol fuel   0  {self.volume_fuel()}
-set mvol silver 0  {self.volume_wire()}
-
+set mvol silver 0  {self.volume_wire()}\n'''
+        if self.case == 'half-submerged':
+            output += f'''
+% Volumes
+set mvol fuel     0  {self.volume_fuel()}
+set mvol silver   0  {self.volume_wire()/2.0}
+set mvol r-silver 0  {self.volume_wire()/2.0}
+'''
+        output += '''
 % Depletion
 set inventory all
 dep daytot {day}
@@ -152,7 +164,7 @@ set gcu -1
 set nps 10000000
 
 % --- materials ---
-mat fuel sum fix "{self.lib}" {self.tempK}
+mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
 '''
         # Write material composition for burned fuel
         iso_has_xs:bool = True
