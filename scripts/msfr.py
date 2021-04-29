@@ -138,7 +138,7 @@ set mvol fuel     0  {self.volume_fuel()}
 set mvol silver   0  {self.volume_wire()/2.0}
 set mvol r-silver 0  {self.volume_wire()/2.0}
 '''
-        output += '''
+        output += f'''
 % Depletion
 set inventory all
 dep daytot {day}
