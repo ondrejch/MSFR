@@ -96,7 +96,7 @@ class AgWire(MSFRbase):
         prevday  = self.fuel.days[prevstep]
         output = 'set title "Activated wire in decaying fuel"\n'
         if self.case == 'fully-submerged':
-            output += '''
+            output += f'''
 % --- surfaces ---
 surf 1   cylx  0.0 0.0 {self.wr} -{self.fh} {self.fh}    % inner wire
 surf 2   cylx  0.0 0.0 {self.fr} -{self.fh} {self.fh}    % fuel cylinder
@@ -107,7 +107,7 @@ cell 11  0  fuel     1 -2   % fuel salt
 cell 99  0  outside  2      % graveyard
 '''
         if self.case == 'half-submerged':
-            output += '''
+            output += f'''
 % --- surfaces ---
 surf 1   cylx  0.0 0.0 {self.wr} -{self.fh} {self.fh}    % inner wire
 surf 2   cylx  0.0 0.0 {self.fr} -{self.fh} {self.fh}    % fuel cylinder
@@ -544,7 +544,7 @@ w.save_qsub_file()
 
 
 import msfr
-w = msfr.AgWire('half-submerged')
+w = msfr.AgWire(0.2, 'half-submerged')
 w.deck_path='/home/ondrejch/APump/MCFR/ag/jeff33-wire/run0/hs'
 w.load_data()
 w.save_decks()
