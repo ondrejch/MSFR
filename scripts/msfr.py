@@ -68,7 +68,7 @@ class AgWire(MSFRbase):
         self.qsub_file:str = os.path.expanduser('~/') + '/runwire.sh' # qsub script path
 
     def load_data(self):
-        '''Open the depeltion file and load the fuel data. Make sure that data path and names are
+        '''Open the depletion file and load the fuel data. Make sure that data path and names are
         set correctly in the parent class'''
         self.dep = serpentTools.read(self.deck_path + '/' + self.deck_name + '_dep.m')
         self.fuel = self.dep.materials['fuelsalt']
@@ -118,7 +118,7 @@ set nfylib "/opt/JEFF-3.3/jeff33.nfy"
 set rfw 1'''
         if step >1:
             output += f'''
-set rfr -{prevday} "step{prevstep}.wrk"'''
+set rfr -{prevday} "wire_step-{prevstep:03d}.wrk"'''
 
         output += f'''
 
