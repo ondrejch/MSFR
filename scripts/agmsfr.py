@@ -19,6 +19,8 @@ class AgWireAnalyzer(object):
         self.wdeck_name:str = 'wire_step'   # Wire depletion steps base name
         self.Ntopisos       = 10    # How many isotopes to plot
         self.topisos        = []    # List of the top EOC isotopes
+        self.agtot          = {}    # Total Ag adens
+        self.agfrac         = {}    # Fraction Ag adens
         self.adata = np.zeros(len(self.fuel.days)*self.Ntopisos). \
             reshape(len(self.fuel.days), self.Ntopisos)
 
@@ -32,6 +34,24 @@ class AgWireAnalyzer(object):
             self.wdeps.append(d)
             self.wires.append(w)
 
+    #def calc_agfrac(self):
+        'Get silver fraction with depletion'
+        Ag_isotopes = []
+        for iso in w.names:
+            if 'Ag' in iso:  # this is a silver isotope
+                Ag_isotopes.append(iso)
+        for step in range(0,len(self.fuel.days)):
+            tot_adens = -1 # TODO
+
+      #  for d in self.ag.days:           # For each depletion step
+       #     agsum = 0.0
+        #    for iso in self.ag.names:
+         #       if 'Ag' in iso:     # Sum Ag isotopes
+          #          agsum += self.ag.getValues('days','adens',[d],[iso])[0,0]
+           #     self.agtot[d]  = agsum
+            #    self.agfrac[d] = agsum / self.ag.getValues('days','adens',[d],['total'])[0,0]
+
+        'Find most abundant Ntopiso isotopes and form adata array for plotting'
         EOCiso = {}
         for iso in w.names:
             if iso == 'total' or iso == 'lost':
@@ -51,11 +71,12 @@ class AgWireAnalyzer(object):
             self.adata[0, self.topisos.index(iso)] = atomdensity
 
         # Rest of burnup
-        for step in range(1,len(self.fuel.days)):
+        for step in range(len(self.wires)):
+            print('step: '+str(step))
             for iso in self.topisos:
-                atomdensity = self.wires[step-1].getValues('days', 'adens', [self.wires[step-1].days[-1]], [iso])[0,0]
+                atomdensity = self.wires[step].getValues('days', 'adens', [self.wires[step].days[-1]], [iso])[0,0]
                 # print(step, iso, atomdensity)
-                self.adata[step, self.topisos.index(iso)] = atomdensity
+                self.adata[step+1, self.topisos.index(iso)] = atomdensity
 
     def burnup2days(self,x:float) -> float:
         return np.interp(x, self.d0.burnup, self.fuel.days)
@@ -70,8 +91,9 @@ class AgWireAnalyzer(object):
         myplot.set_xlabel('Burnup [MWd/kgHM]')
         myplot.set_ylabel("Atom density [10$^{24}$/cm$^{3}$]")
         myplot.set_yscale('log')
-#        secax = myplot.secondary_xaxis('top', functions=(self.burnup2days, self.days2burnup))
-#        secax.set_xlabel('EFPD [days]')
+        secax = myplot.secondary_xaxis('top', functions=(self.burnup2days, self.days2burnup))
+        secax.set_xlabel('EFPD [days]')
+        myplot.legend(loc="best", fontsize="medium", title="Isotopes in silver wire")
         (ymin, ymax) = myplot.get_ylim()
         ymin = 1e-12
         plt.ylim(ymin, ymax)
@@ -88,8 +110,9 @@ class AgWireAnalyzer(object):
 '''
 import agmsfr
 aa = agmsfr.AgWireAnalyzer("/home/o/UTK/research/ARPA-E_Pump_ORNL/silver/msfr_dev/msfr")
-aa.wdeck_path="/home/o/UTK/research/ARPA-E_Pump_ORNL/silver/msfr_dev/"                      
+aa.wdeck_path="/home/o/UTK/research/ARPA-E_Pump_ORNL/silver/msfr_dev/"
 aa.read_wires()
+aa.plot_topisos()
 '''
 
 class AgMSFRAnalyzer(object):
