@@ -17,10 +17,10 @@ class AgWireAnalyzer(object):
         self.wdeps = []
         self.wdeck_path:str = '/tmp'        # Path to wire depletion decks
         self.wdeck_name:str = 'wire_step'   # Wire depletion steps base name
-        self.Ntopisos       = 10    # How many isotopes to plot
+        self.Ntopisos:int   = 10    # How many isotopes to plot
         self.topisos        = []    # List of the top EOC isotopes
-        self.agtot          = {}    # Total Ag adens
-        self.agfrac         = {}    # Fraction Ag adens
+        self.agtot          = []    # Total Ag adens
+        self.agfrac         = []    # Fraction Ag adens
         self.adata = np.zeros(len(self.fuel.days)*self.Ntopisos). \
             reshape(len(self.fuel.days), self.Ntopisos)
 
@@ -40,16 +40,28 @@ class AgWireAnalyzer(object):
         for iso in w.names:
             if 'Ag' in iso:  # this is a silver isotope
                 Ag_isotopes.append(iso)
-        for step in range(0,len(self.fuel.days)):
-            tot_adens = -1 # TODO
 
-      #  for d in self.ag.days:           # For each depletion step
-       #     agsum = 0.0
-        #    for iso in self.ag.names:
-         #       if 'Ag' in iso:     # Sum Ag isotopes
-          #          agsum += self.ag.getValues('days','adens',[d],[iso])[0,0]
-           #     self.agtot[d]  = agsum
-            #    self.agfrac[d] = agsum / self.ag.getValues('days','adens',[d],['total'])[0,0]
+        # Initial concentrations
+        agsum:float = 0.0
+        adens:float = 0.0
+        for iso in self.wires[0].names:
+            if iso == 'total':
+                agtot  = self.wires[0].getValues('days', 'adens', [self.wires[0].days[0]], [iso])[0,0]
+            if 'Ag' in iso:     # Sum Ag isotopes
+                agsum += self.wires[0].getValues('days', 'adens', [self.wires[0].days[0]], [iso])[0,0]
+        self.agtot.append(agsum)
+        self.agfrac.append(agsum/adens)
+
+        for step in range(len(self.wires)):
+            agsum:float = 0.0
+            adens:float = 0.0
+            for iso in self.wires[step].names:
+                if iso == 'total':
+                    agtot  = self.wires[step].getValues('days', 'adens', [self.wires[step].days[-1]], [iso])[0,0]
+                if 'Ag' in iso:     # Sum Ag isotopes
+                    agsum += self.wires[step].getValues('days', 'adens', [self.wires[step].days[-1]], [iso])[0,0]
+            self.agtot.append(agsum)
+            self.agfrac.append(agsum/adens)
 
         'Find most abundant Ntopiso isotopes and form adata array for plotting'
         EOCiso = {}
