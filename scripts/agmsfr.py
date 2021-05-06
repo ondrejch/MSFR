@@ -34,30 +34,28 @@ class AgWireAnalyzer(object):
             self.wdeps.append(d)
             self.wires.append(w)
 
-    #def calc_agfrac(self):
         'Get silver fraction with depletion'
         Ag_isotopes = []
         for iso in w.names:
             if 'Ag' in iso:  # this is a silver isotope
                 Ag_isotopes.append(iso)
-
         # Initial concentrations
         agsum:float = 0.0
         adens:float = 0.0
         for iso in self.wires[0].names:
             if iso == 'total':
-                agtot  = self.wires[0].getValues('days', 'adens', [self.wires[0].days[0]], [iso])[0,0]
+                adens  = self.wires[0].getValues('days', 'adens', [self.wires[0].days[0]], [iso])[0,0]
             if 'Ag' in iso:     # Sum Ag isotopes
                 agsum += self.wires[0].getValues('days', 'adens', [self.wires[0].days[0]], [iso])[0,0]
         self.agtot.append(agsum)
         self.agfrac.append(agsum/adens)
-
+        # Rest of burnup
         for step in range(len(self.wires)):
             agsum:float = 0.0
             adens:float = 0.0
             for iso in self.wires[step].names:
                 if iso == 'total':
-                    agtot  = self.wires[step].getValues('days', 'adens', [self.wires[step].days[-1]], [iso])[0,0]
+                    adens  = self.wires[step].getValues('days', 'adens', [self.wires[step].days[-1]], [iso])[0,0]
                 if 'Ag' in iso:     # Sum Ag isotopes
                     agsum += self.wires[step].getValues('days', 'adens', [self.wires[step].days[-1]], [iso])[0,0]
             self.agtot.append(agsum)
@@ -69,22 +67,19 @@ class AgWireAnalyzer(object):
             if iso == 'total' or iso == 'lost':
                 continue
             EOCiso[iso] = w.getValues('days', 'adens', [w.days[-1]], [iso])[0,0]
-
         # Sort by concentration
         sortedEOCiso = sorted(EOCiso.items(), key=lambda x:x[1], reverse=True)
         # print (sortedEOCiso)
         # First N entries
         self.topisos = [ x[0] for x in sortedEOCiso[0:self.Ntopisos] ]
-
         # Initial concentrations
         for iso in self.topisos:
             atomdensity = self.wires[0].getValues('days', 'adens', [self.wires[0].days[0]], [iso])[0,0]
             # print(iso, atomdensity)
             self.adata[0, self.topisos.index(iso)] = atomdensity
-
         # Rest of burnup
         for step in range(len(self.wires)):
-            print('step: '+str(step))
+            # print('step: '+str(step))
             for iso in self.topisos:
                 atomdensity = self.wires[step].getValues('days', 'adens', [self.wires[step].days[-1]], [iso])[0,0]
                 # print(step, iso, atomdensity)
@@ -95,6 +90,30 @@ class AgWireAnalyzer(object):
 
     def days2burnup(self,x:float) -> float:
         return np.interp(x, self.fuel.days, self.d0.burnup)
+
+    def plot_agfrac(self, plot_file:str='./plot_wire-Ag-frac.pdf', plot_title = ''):
+        'Make plot of silver material evolution with burnup'
+        fig = plt.figure()
+        myplot = plt.plot(self.d0.burnup, self.agfrac, labels=['silver']) # TODO
+        myplot.set_xlabel('Burnup [MWd/kgHM]')
+        myplot.set_ylabel("Silver fraction in the wire")
+        myplot.set_yscale('log')
+        secax = myplot.secondary_xaxis('top', functions=(self.burnup2days, self.days2burnup))
+        secax.set_xlabel('EFPD [days]')
+        myplot.legend(loc="best", fontsize="medium", title="Isotopes in silver wire")
+        (ymin, ymax) = myplot.get_ylim()
+        ymin = 1e-12
+        plt.ylim(ymin, ymax)
+        if plot_title != '':
+            plt.title(plot_title)
+        if plot_file == None:
+            plt.show()
+        else:
+            if not os.path.exists(os.path.dirname(plot_file)):
+                os.makedirs(os.path.dirname(plot_file))
+            plt.savefig(plot_file, bbox_inches='tight')
+        plt.close()
+
 
     def plot_topisos(self, plot_file:str='./plot_wire-Ag-iso.pdf', plot_title = ''):
         'Make plot of isotopic evolution with burnup'
@@ -247,6 +266,3 @@ if __name__ == '__main__':
     a.calc_agfrac()
     a.calc_topisos()
     a.plot_topisos()
-
-
-
