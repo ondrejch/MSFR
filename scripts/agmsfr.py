@@ -93,17 +93,18 @@ class AgWireAnalyzer(object):
 
     def plot_agfrac(self, plot_file:str='./plot_wire-Ag-frac.pdf', plot_title = ''):
         'Make plot of silver material evolution with burnup'
-        fig = plt.figure()
-        myplot = plt.plot(self.d0.burnup, self.agfrac, labels=['silver']) # TODO
+        fig    = plt.figure()
+        myplot = fig.add_subplot(111)
+        myplot.plot(self.d0.burnup, self.agfrac) # TODO
         myplot.set_xlabel('Burnup [MWd/kgHM]')
         myplot.set_ylabel("Silver fraction in the wire")
-        myplot.set_yscale('log')
-        secax = myplot.secondary_xaxis('top', functions=(self.burnup2days, self.days2burnup))
-        secax.set_xlabel('EFPD [days]')
-        myplot.legend(loc="best", fontsize="medium", title="Isotopes in silver wire")
-        (ymin, ymax) = myplot.get_ylim()
-        ymin = 1e-12
-        plt.ylim(ymin, ymax)
+        #myplot.set_yscale('log')
+        #secax = myplot.secondary_xaxis('top', functions=(self.burnup2days, self.days2burnup))
+        #secax.set_xlabel('EFPD [days]')
+        #myplot.legend(loc="best", fontsize="medium", title="Isotopes in silver wire")
+        #(ymin, ymax) = myplot.get_ylim()
+        #ymin = 1e-12
+        #plt.ylim(ymin, ymax)
         if plot_title != '':
             plt.title(plot_title)
         if plot_file == None:
@@ -112,6 +113,7 @@ class AgWireAnalyzer(object):
             if not os.path.exists(os.path.dirname(plot_file)):
                 os.makedirs(os.path.dirname(plot_file))
             plt.savefig(plot_file, bbox_inches='tight')
+            print(f"Saved plot file: {plot_file}")
         plt.close()
 
 
