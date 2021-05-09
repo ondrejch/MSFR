@@ -136,6 +136,7 @@ class AgWireAnalyzer(object):
             if not os.path.exists(os.path.dirname(plot_file)):
                 os.makedirs(os.path.dirname(plot_file))
             plt.savefig(plot_file, bbox_inches='tight')
+            print(f"Saved plot file: {plot_file}")
         plt.close()
 
 '''
@@ -190,6 +191,7 @@ class AgMSFRAnalyzer(object):
             if not os.path.exists(os.path.dirname(plot_file)):
                 os.makedirs(os.path.dirname(plot_file))
             plt.savefig(plot_file, bbox_inches='tight')
+            print(f"Saved plot file: {plot_file}")
         plt.close()
 
     def calc_topisos(self):
@@ -225,6 +227,7 @@ class AgMSFRAnalyzer(object):
             if not os.path.exists(os.path.dirname(plot_file)):
                 os.makedirs(os.path.dirname(plot_file))
             plt.savefig(plot_file, bbox_inches='tight')
+            print(f"Saved plot file: {plot_file}")
         plt.close()
 
     def plot_multi(self, plot_file:str='./plot.pdf', plot_title = ''):
@@ -255,6 +258,7 @@ class AgMSFRAnalyzer(object):
             if not os.path.exists(os.path.dirname(plot_file)):
                 os.makedirs(os.path.dirname(plot_file))
             plt.savefig(plot_file, bbox_inches='tight')
+            print(f"Saved plot file: {plot_file}")
         plt.close()
 
 # ------------------------------------------------------------------------------
