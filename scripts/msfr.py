@@ -90,7 +90,11 @@ class AgWire(MSFRbase):
 
     def volume_fuel(self) -> float:
         '''Calculates the fuel salt volume'''
-        return math.pi * 2.0*self.fh * (self.fr**2 - self.wr**2)
+        V = math.pi * 2.0*self.fh * (self.fr**2 - self.wr**2)
+        if self.case == 'fully-submerged':
+            return V
+        if self.case == 'half-submerged':
+            return V / 2.0
 
     def wire_deck(self, step:int=1) -> str:
         '''Returns wire-in-salt Serpent input deck for a particular step calculation'''
