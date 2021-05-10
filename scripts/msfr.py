@@ -131,7 +131,7 @@ cell 99  0  outside  2        % graveyard
         output += self.matdeck_silver()         # silver wire
         if self.case == 'half-submerged':       # surrounding silver
             output += self.matdeck_silver('r-silver',0)
-        if self.case == 'fuly-submerged':
+        if self.case == 'fully-submerged':
             output += f'''
 % Volumes
 set mvol fuel   0  {self.volume_fuel()}
@@ -166,7 +166,7 @@ src 1 n sg fuel 1
 
 % Options:
 set gcu -1
-set nps 10000000
+set nps 100000000
 
 % --- materials ---
 mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
