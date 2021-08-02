@@ -13,6 +13,8 @@ import serpentTools
 do_plots = False
 my_debug = False
 
+NUCLEAR_LIBRARIES = ['endf7','jeff33','endf8']
+
 
 class MSFRbase(object):
     '''Common base class for the MSFR project'''
@@ -31,6 +33,7 @@ class MSFRbase(object):
         self.ompcores:int  = 16         # OMP core count
         self.deck_name:str = 'msfr'     # Serpent input file name
         self.deck_path:str = '/tmp'     # Where to run the Serpent deck
+        self.nuc_libs:str  = 'jeff33'   # Nuclear data libraries
         self.qsub_file:str = os.path.expanduser('~/') + '/run.sh'  # qsub script path
 
     def rho_silver(self) -> float:
@@ -38,7 +41,7 @@ class MSFRbase(object):
         return 10.465 - 9.967e-4*self.silver_T # [g/cm^3]
 
     def matdeck_silver(self, mat_name:str='silver', burn:int=1) -> str:
-        '''Retrns material cards for silver'''
+        '''Returns material cards for silver'''
         rgb:str ="110 110 110"
         if burn:
             rgb:str ="210 210 210"
@@ -47,6 +50,34 @@ class MSFRbase(object):
 mat {mat_name} -{self.rho_silver()} tmp {self.silver_T} rgb {rgb} burn {burn}
 47107.{self.lib_ag}  -0.51839    % Ag
 47109.{self.lib_ag}  -0.48161    % Ag
+'''
+
+    def lib_deck(self) -> str:
+        '''Returns cards for nuclear data libraries'''
+        if self.nuc_libs in NUCLEAR_LIBRARIES:
+            pass
+        else:
+            ValueError("ERROR: Nuclear data library ",nuclib," is unknown.")
+        if self.nuc_libs == 'jeff33':
+            return '''
+% Data Libraries
+set acelib "/opt/JEFF-3.3/sss_jeff33.xsdir"
+set declib "/opt/JEFF-3.3/jeff33.dec"
+set nfylib "/opt/JEFF-3.3/jeff33.nfy" 
+'''
+        if self.nuc_libs == 'endf7':
+            return '''
+% Data Libraries
+set acelib "sss_endfb7u.sssdir"
+set declib "sss_endfb7.dec"
+set nfylib "sss_endfb7.nfy"
+'''
+        if self.nuc_libs == 'endf8':
+            return '''
+% Data Libraries
+set acelib "/opt/ENDFB-8.0/endfb80.xsdir"
+set declib "/opt/ENDFB-8.0/sss_endfb80.dec"
+set nfylib "/opt/ENDFB-8.0/sss_endfb80.nfy"
 '''
 
     def run_deck(self):
@@ -143,15 +174,12 @@ set mvol fuel     0  {self.volume_fuel()}
 set mvol silver   0  {self.volume_wire()/2.0}
 set mvol r-silver 0  {self.volume_wire()/2.0}
 '''
+        output += self.lib_deck()
+
         output += f'''
 % Depletion
 set inventory all
 dep daytot {day}
-
-% Data Libraries
-set acelib "/opt/JEFF-3.3/sss_jeff33.xsdir"
-set declib "/opt/JEFF-3.3/jeff33.dec"
-set nfylib "/opt/JEFF-3.3/jeff33.nfy"
 
 % Read binary restart file
 set rfw 1'''
@@ -330,12 +358,8 @@ set pop {self.histories} 240 40
 % Turning off group constant generation hastens the calculation
 set gcu -1
 '''
-        data_cards += '''
-% Data Libraries
-set acelib "sss_endfb7u.sssdir"
-set declib "sss_endfb7.dec"
-set nfylib "sss_endfb7.nfy"
-'''
+        data_cards += self.lib_deck()
+
         if do_plots:
             data_cards += '''
 % Plots
@@ -537,7 +561,7 @@ def liquidusNaClUCl3(xUCl3:float) -> float:
 
 # ------------------------------------------------------------
 if __name__ == '__main__':
-    print("This module handles a simple lattice.")
+    print("This module handles a MSFR deck generation class.")
     input("Press Ctrl+C to quit, or enter else to test it.")
     mycore = MSFR()
     mycore.deplete = 100
@@ -549,7 +573,7 @@ if __name__ == '__main__':
 #    mycore.queue = 'fill'
     mycore.save_deck()
     mycore.save_qsub_file()
-    mycore.run_deck()
+#   mycore.run_deck()
 
 '''
 import msfr
