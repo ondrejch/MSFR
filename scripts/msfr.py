@@ -63,7 +63,7 @@ mat {mat_name} -{self.rho_silver()} tmp {self.silver_T} rgb {rgb} burn {burn}
 % Data Libraries
 set acelib "/opt/JEFF-3.3/sss_jeff33.xsdir"
 set declib "/opt/JEFF-3.3/jeff33.dec"
-set nfylib "/opt/JEFF-3.3/jeff33.nfy" 
+set nfylib "/opt/JEFF-3.3/jeff33.nfy"
 '''
         if self.nuc_libs == 'endf7':
             return '''
@@ -320,7 +320,7 @@ surf 4   sph  0.0 0.0 0.0 {self.refl}   % reflector
         refl_lib  = self.lib
         materials = '''
 % Iron reflector [density 7.874/((1+680*12e-6)^3)]
-mat refl   -7.68435 tmp 900 rgb 128 128 178
+mat refl   -7.68435 tmp {self.tempK} rgb 128 128 178
 26054.{refl_lib}  -0.058450   %  Fe
 26056.{refl_lib}  -0.917540   %  Fe
 26057.{refl_lib}  -0.021190   %  Fe
@@ -376,18 +376,18 @@ plot 3 1500 1500
 % First we need some extra materials to do depletion with reprocessing correctly.
 
 % stockpile of extra U1
-mat U_stock -3.5096 burn 1 vol 1e8
+mat U_stock -3.5096 burn 1 vol 1e8 tmp {self.tempK}
 17037.{refuel_lib} -0.3707532563
 11023.{refuel_lib} -0.0633565017
 92235.{refuel_lib} -0.05553085588
 92238.{refuel_lib} -0.49977770291999996
 
 % tanks for offgases
-mat offgastankcore 0.0007 burn 1 vol 1e6
+mat offgastankcore 0.0007 burn 1 vol 1e6 tmp {self.tempK}
 2004.{refuel_lib} 1
 
 % overflow tank
-mat overflow 0.0007 burn 1 vol 1e8
+mat overflow 0.0007 burn 1 vol 1e8 tmp {self.tempK}
 2004.{refuel_lib} 1
 
 % mass flow definitions
