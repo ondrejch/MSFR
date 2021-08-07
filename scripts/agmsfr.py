@@ -168,6 +168,16 @@ class AgMSFRAnalyzer(object):
         self.Ntopisos  = 10     # How many isotopes to plot
         self.topisos   = []     # List of the top EOC isotopes
 
+    def get_EOCfrac(self, frac_ele='Pt') -> float:
+        'Get elemental fraction at EOC'
+        frac_elesum:float = 0.0
+        for iso in self.ag.names:
+            if frac_ele in iso:     # Sum Ag isotopes
+                frac_elesum += self.ag.getValues('days','adens',[self.ag.days[-1]],[iso])[0,0]
+#                print("ISO :",iso,  self.ag.getValues('days','adens',[self.ag.days[-1]],[iso])[0,0])
+        frac_elesum /= self.ag.getValues('days','adens',[self.ag.days[-1]],['total'])[0,0]
+        return frac_elesum
+
     def calc_agfrac(self):
         'Get silver fraction with depletion'
         for d in self.ag.days:           # For each depletion step
@@ -175,8 +185,8 @@ class AgMSFRAnalyzer(object):
             for iso in self.ag.names:
                 if 'Ag' in iso:     # Sum Ag isotopes
                     agsum += self.ag.getValues('days','adens',[d],[iso])[0,0]
-                self.agtot[d]  = agsum
-                self.agfrac[d] = agsum / self.ag.getValues('days','adens',[d],['total'])[0,0]
+            self.agtot[d]  = agsum
+            self.agfrac[d] = agsum / self.ag.getValues('days','adens',[d],['total'])[0,0]
 
     def plot_agfrac(self, plot_file:str='./plot_Ag-frac.pdf', plot_title = ''):
         'Make plot of Ag fraction remaining in Ag shell with bunrup'
