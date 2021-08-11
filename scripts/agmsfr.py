@@ -11,11 +11,12 @@ import serpentTools
 class Resistivity(object):
     '''Class relating to resistivity calcualtions [miloOhm cm]
     http://www.nessengr.com/techdata/metalresis.html'''
-    self.res       = {} 
-    #    element      rho_0  delta_rho
-    self.ele['Ag'] = (  1.6, 0.0038 )
-    self.ele['Pa'] = ( 10.8, 0.0035 )
-    self.ele['Cd'] = (  7.4, 0.0040 )
+    def __init__(self):
+        self.ele       = {}
+        #    element      rho_0  delta_rho
+        self.ele['Ag'] = (  1.6, 0.0038 )
+        self.ele['Pa'] = ( 10.8, 0.0035 )
+        self.ele['Cd'] = (  7.4, 0.0040 )
 
     def get_rho(self, element, temp) -> float:
         'Resistivity [miloOhm cm] as a function of temperature [degC]'
@@ -145,7 +146,7 @@ class AgWireAnalyzer(object):
             print(f"Saved plot file: {plot_file}")
         plt.close()
 
-    def get_EOCfrac(self frac_ele='Pt') -> float:
+    def get_EOCfrac(self, frac_ele='Pt') -> float:
         'Get elemental fraction in wire at EOC'
         frac_elesum:float = 0.0
         for iso in self.wires[-1].names:
