@@ -145,6 +145,15 @@ class AgWireAnalyzer(object):
             print(f"Saved plot file: {plot_file}")
         plt.close()
 
+    def get_EOCfrac(self frac_ele='Pt') -> float:
+        'Get elemental fraction in wire at EOC'
+        frac_elesum:float = 0.0
+        for iso in self.wires[-1].names:
+            if frac_ele in iso:     # Sum Ag isotopes
+                frac_elesum += self.wires[-1].getValues('days','adens',[self.wires[-1].days[-1]],[iso])[0,0]
+#                print("ISO :",iso, self.wires[-1].getValues('days','adens',[self.wires[-1].days[-1]],[iso])[0,0]
+        frac_elesum /= self.wires[-1].getValues('days','adens',[self.wires[-1].days[-1]],['total'])[0,0]
+        return frac_elesum
 
     def plot_topisos(self, plot_file:str='./plot_wire-Ag-iso.pdf', plot_title = ''):
         'Make plot of isotopic evolution with burnup'
