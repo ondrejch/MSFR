@@ -8,6 +8,35 @@ import os
 
 import serpentTools
 
+class Resistivity(object):
+    '''Class relating to resistivity calcualtions [miloOhm cm]
+    http://www.nessengr.com/techdata/metalresis.html'''
+    self.res       = {} 
+    #    element      rho_0  delta_rho
+    self.ele['Ag'] = (  1.6, 0.0038 )
+    self.ele['Pa'] = ( 10.8, 0.0035 )
+    self.ele['Cd'] = (  7.4, 0.0040 )
+
+    def get_rho(self, element, temp) -> float:
+        'Resistivity [miloOhm cm] as a function of temperature [degC]'
+        (rho0, alpha) = element
+        return rho0 * (1.0 + alpha*(temp - 20.0))
+
+    def combine_rho(self, rho_c, rho_d, frac_d) -> float:
+        '''Calculate resistivity of mixtures
+        http://elektroarsenal.net/resistivity-of-mixtures-and-porous-materials.html
+        http://anis.buet.ac.bd/Teaching/properties_of_materials/Lecture7.pdf
+
+        rho_c   resistivity of continuos phase
+        rho_d   resistivity of dispersed phase
+        frac_d  fraction of dispersed phase'''
+        if rho_d > 10.0*rho_c:
+            return rho_c * (1.0 + 0.5*frac_d) / (1.0 - frac_d)
+        if rho_d < 0.1*rho_c:
+            return rho_c * (1.0 - frac_d)     / (1.0 + 2.0*frac_d)
+        return rho_d*frac_d + rho_c*(1.0-frac_d)
+
+
 class AgWireAnalyzer(object):
     'Silver wire in depleted salt analysis class'
     def __init__(self, _deckname:str = '/full/path/to/msfr'):
