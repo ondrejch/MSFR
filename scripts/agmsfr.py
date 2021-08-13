@@ -7,6 +7,7 @@ import sys
 import os
 
 import serpentTools
+serpentTools.settings.rc['verbosity'] = 'error'
 
 class Resistivity(object):
     '''Class relating to resistivity calcualtions [miloOhm cm]
