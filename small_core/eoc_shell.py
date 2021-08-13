@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # Ondrej Chvala, ochvala@utk.edu
-# 2020-03-13
+# 2021-07-10
 # GNU/GPL
 
 '''Analysis script for silver depletion due to core neutrons within the reflector'''
