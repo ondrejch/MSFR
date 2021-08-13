@@ -92,7 +92,13 @@ set nfylib "/opt/ENDFB-8.0/sss_endfb80.nfy"
 AGWIRE_CASES = ['fully-submerged', 'half-submerged']
 
 class AgWire(MSFRbase):
-    '''Silver wire depleted in MSFR fuel salt'''
+    '''Silver wire depleted in MSFR fuel salt. Usage:
+import msfr
+w = msfr.AgWire(0.2, 'half-submerged')
+w.deck_path='/home/ondrejch/APump/wire_small_jeff33/130/hs/'
+w.load_data()
+w.save_decks()
+w.save_qsub_file()     '''
     def __init__(self, wr:float = 0.2, case:str='fully-submerged'):
         if case in AGWIRE_CASES:
             self.case = case
@@ -171,8 +177,8 @@ set mvol silver 0  {self.volume_wire()}\n'''
             output += f'''
 % Volumes
 set mvol fuel     0  {self.volume_fuel()}
-set mvol silver   0  {self.volume_wire()/2.0}
-set mvol r-silver 0  {self.volume_wire()/2.0}
+set mvol silver   0  {self.volume_wire()}
+set mvol r-silver 0  {self.volume_fuel()}
 '''
         output += self.lib_deck()
 
