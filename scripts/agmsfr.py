@@ -15,28 +15,42 @@ class Resistivity(object):
     def __init__(self):
         self.ele       = {}
         #    element      rho_0  delta_rho
-        self.ele['Ag'] = (  1.6, 0.0038 )
-        self.ele['Pa'] = ( 10.8, 0.0035 )
-        self.ele['Cd'] = (  7.4, 0.0040 )
+        self.ele['Ag'] = (  1.6, 0.0038 )   # Silver
+        self.ele['Pd'] = ( 10.8, 0.0035 )   # Palladium
+        self.ele['Cd'] = (  7.4, 0.0040 )   # Cadmium
 
-    def get_rho(self, element, temp) -> float:
+    def get_rho(self, element:str, temp:float) -> float:
         'Resistivity [miloOhm cm] as a function of temperature [degC]'
-        (rho0, alpha) = element
+        (rho0, alpha) =self.ele[element]
         return rho0 * (1.0 + alpha*(temp - 20.0))
 
-    def combine_rho(self, rho_c, rho_d, frac_d) -> float:
+    def combine_rho(self, rho_c:float, rho_d:float, frac_d:float) -> float:
         '''Calculate resistivity of mixtures
         http://elektroarsenal.net/resistivity-of-mixtures-and-porous-materials.html
         http://anis.buet.ac.bd/Teaching/properties_of_materials/Lecture7.pdf
-
-        rho_c   resistivity of continuos phase
-        rho_d   resistivity of dispersed phase
-        frac_d  fraction of dispersed phase'''
+            rho_c   resistivity of continuos phase
+            rho_d   resistivity of dispersed phase
+            frac_d  fraction of dispersed phase'''
         if rho_d > 10.0*rho_c:
             return rho_c * (1.0 + 0.5*frac_d) / (1.0 - frac_d)
         if rho_d < 0.1*rho_c:
             return rho_c * (1.0 - frac_d)     / (1.0 + 2.0*frac_d)
         return rho_d*frac_d + rho_c*(1.0-frac_d)
+
+    def get_rho_AgPdCd(self, fAg:float, fPd:float, fCd:float, temp:float) -> float:
+        '''Calculates resistivity of Ag-Pd-Cd mixture using the series rule, if
+        the series rule applies.'''
+        rhoAg = self.get_rho('Ag', temp)
+        rhoPd = self.get_rho('Pd', temp)
+        rhoCd = self.get_rho('Cd', temp)
+        if  rhoAg > 10.0*rhoPd or rhoAg < 0.1*rhoPd or \
+            rhoAg > 10.0*rhoCd or rhoAg < 0.1*rhoCd:
+            raise ValueError('Resistivities are too different to use mixture rule: Ag ', \
+                rhoAg, ' Pd ', rhoPd, ' Cd ' , rhoCd)
+        else:
+            #print ( fAg, rhoAg,  fPd, rhoPd , fCd, rhoCd)
+            return fAg*rhoAg + fPd*rhoPd + fCd*rhoCd
+
 
 
 class AgWireAnalyzer(object):
