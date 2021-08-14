@@ -57,7 +57,7 @@ mat {mat_name} -{self.rho_silver()} tmp {self.silver_T} rgb {rgb} burn {burn}
         if self.nuc_libs in NUCLEAR_LIBRARIES:
             pass
         else:
-            ValueError("ERROR: Nuclear data library ",nuclib," is unknown.")
+            raise ValueError("ERROR: Nuclear data library ",nuclib," is unknown.")
         if self.nuc_libs == 'jeff33':
             return '''
 % Data Libraries
