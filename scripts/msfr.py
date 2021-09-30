@@ -6,6 +6,7 @@
 
 import os
 import math
+import re
 from scipy import interpolate
 from salts import Salt
 import serpentTools
@@ -205,7 +206,8 @@ set nps 100000000
 % --- materials ---
 mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
 '''
-        # Write material composition for burned fuel
+        # Write material composition for the burned salt fuel
+        # (this acts as a neutron source for the simulation)
         iso_has_xs:bool = True
         prevzai:int = 0
         m_offset:int = 400  # isomer offset for ZA.id
@@ -265,7 +267,15 @@ sss2 -omp 64 {self.wdeck_name}-{step:03d} > myout_{step:03d}.out''')
 
 
 class MSFR(MSFRbase):
-    '''Molten Spherical chloride salt Fast Reactor'''
+    '''Molten Spherical chloride salt Fast Reactor
+    usage:
+import msfr
+mycore = msfr.MSFR(200, 300, 0.1975, "66.66%NaCl+33.34%UCl3")
+mycore.power   = 1e9 # power 1GWth
+mycore.deplete = 10  # 10 years
+mycore.deck_path = '/tmp/'
+mycore.save_deck()
+    '''
     def __init__(self, r:float=300.0, refl:float=500.0, e:float=0.1083, salt="58%NaCl+42%UCl3", Ag_r:float=-1.0):
         if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
             raise ValueError("Bad parameters: ", r, refl, e)
@@ -274,6 +284,8 @@ class MSFR(MSFRbase):
         # core parameters
         self.r:float           = r      # Core radius [cm]
         self.refl:float        = refl   # Outer reflector thickness [cm]
+        self.refl_lib          = '06c'  # Reflector nuclear data library
+        self.refl_tempK        = 873.0  # Reflector temperature [K]
         self.salt_formula:str  = salt   # Salt formula
         self.silver_at_r:float = Ag_r   # Where to put silver semi-shpere [cm]
         self.silver_d:float    = 0.05   # Thickness of silver semi-sphere [cm]
@@ -323,14 +335,33 @@ surf 4   sph  0.0 0.0 0.0 {self.refl}   % reflector
 
     def get_materials(self) -> str:
         'Material definitions, non-salt'
-        refl_lib  = self.lib
+        refl_lib  = self.refl_lib
         materials = '''
-% Iron reflector [density 7.874/((1+680*12e-6)^3)]
-mat refl   -7.68435 tmp {self.tempK} rgb 128 128 178
-26054.{refl_lib}  -0.058450   %  Fe
-26056.{refl_lib}  -0.917540   %  Fe
-26057.{refl_lib}  -0.021190   %  Fe
-26058.{refl_lib}  -0.002820   %  Fe
+% Cast iron reflector
+mat refl   -7.034 tmp {self.refl_tempK} rgb 128 128 178
+  6000.{refl_lib} -0.034000
+%14000.{refl_lib} -0.026000
+ 14028.{refl_lib}  -2.38853E-02
+ 14029.{refl_lib}  -1.25674E-03
+ 14030.{refl_lib}  -8.57970E-04
+ 15031.{refl_lib} -0.003000
+%16000.{refl_lib} -0.001000
+ 16032.{refl_lib}  -9.47153E-04
+ 16033.{refl_lib}  -7.71207E-06
+ 16034.{refl_lib}  -4.50224E-05
+ 16036.{refl_lib}  -1.12170E-07
+ 25055.{refl_lib} -0.006500
+%26000.{refl_lib} -0.929500
+ 26054.{refl_lib}  -5.24755E-02
+ 26056.{refl_lib}  -8.54225E-01
+ 26057.{refl_lib}  -2.00806E-02
+ 26058.{refl_lib}  -2.71920E-03
+%
+%pure iron
+%26054.{refl_lib}  -0.058450   %  Fe
+%26056.{refl_lib}  -0.917540   %  Fe
+%26057.{refl_lib}  -0.021190   %  Fe
+%26058.{refl_lib}  -0.002820   %  Fe
 '''
 
         if self.silver_at_r > 0.0 and self.silver_at_r <= self.r:
@@ -376,17 +407,20 @@ plot 3 1500 1500
 
     def get_repr_cards(self) -> str:
         'Reprocessing setup'
-        refuel_lib = self.lib
+        refuel_lib = self.lib   # First, build refuel stream using the same material as fuel
+        refuel_tmp   = self.s.serpent_mat(self.tempK) # Same as fresh fuel
+        refuel_split = refuel_tmp.split('\n')
+        refuel_rho   = re.search(r'-[0-9.]+', refuel_split[1]).group()
+        if float(refuel_rho) > -1.0:     # Sanity check
+            raise ValueError('Refuel density problem, ',refuel_rho)
+        refuel  = 'mat U_stock {refuel_rho} burn 1 vol 1e8 tmp {self.tempK}\n'.format(**locals())
+        refuel += '\n'.join(refuel_split[2:])   # Add isotopic density list
         repr_cards = '''
 %___________Reprocessing___________
 % First we need some extra materials to do depletion with reprocessing correctly.
 
-% stockpile of extra U1
-mat U_stock -3.5096 burn 1 vol 1e8 tmp {self.tempK}
-17037.{refuel_lib} -0.3707532563
-11023.{refuel_lib} -0.0633565017
-92235.{refuel_lib} -0.05553085588
-92238.{refuel_lib} -0.49977770291999996
+% stockpile of extra refuel
+{refuel}
 
 % tanks for offgases
 mat offgastankcore 0.0007 burn 1 vol 1e6 tmp {self.tempK}
