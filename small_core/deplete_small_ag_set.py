@@ -9,7 +9,7 @@
 import msfr
 import numpy as np
 
-r = 128.0               # Smallest core has fuel salt radius of 128 cm
+r = 122.0               # Smallest core has fuel salt radius of 128 cm
 relf_thickness = 400.0  # 4m reflector
 refl = r + relf_thickness
 ag_rs = np.arange(130,refl, 30)             # Positions of silver shell
