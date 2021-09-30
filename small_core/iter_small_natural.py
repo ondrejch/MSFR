@@ -2,21 +2,25 @@
 #
 # Ondrej Chvala, ochvala@utk.edu
 # 2021-07-28
+# note - email ALex Dephilis and Vlad
 # GNU/GPL
 
-'''Find critical size of smallest MCFR with eutectic NaCl-UCl3 with natural Cl'''
+'''Find critical size of smallest MCFR with eutectic NaCl-UCl3'''
 
 import msfr
 
-#radia = [140,180,220,260,300]
-radia = [170,172,174,176,178]
-relf_thickness = 200.0
-my_path = "/home/ondrejch/APump/natural"
+#radia = [160,165,170,174]
+#radia = [150,153,155,157]
+radia = [140,143,145]
+relf_thickness = 400.0
+my_path = "/home/ondrejch/APump/final_run/small_core_natural/"
 
 for r in radia:
     refl = r + relf_thickness
     mycore = msfr.MSFR(r, refl, 0.1975, "66.66%NaCl+33.34%UCl3")
-    mycore.queue='fill'
+    mycore.queue     = 'fill'
+    mycore.ompcores  = 64
+    mycore.histories = 50000
     mycore.s.set_chlorine_37Cl_fraction(0.24)
     mycore.qsub_file = my_path + "/run.sh"
     if r == radia[0]:
@@ -27,16 +31,16 @@ for r in radia:
     mycore.run_deck()
 
 if False: ''' RESULTS
- ~/APump/MCFR/small $ grep ANA_KEFF */*res.m
-0140.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  9.36033E-01 0.00083  9.28989E-01 0.00080  7.05821E-03 0.01256 ];
-0170.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  9.97502E-01 0.00081  9.89912E-01 0.00084  7.47696E-03 0.01217 ];
-0172.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.00185E+00 0.00077  9.94217E-01 0.00075  7.53817E-03 0.01215 ];
-0174.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.00612E+00 0.00081  9.98278E-01 0.00079  7.45476E-03 0.01130 ];
-0176.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.00718E+00 0.00082  9.99882E-01 0.00080  7.60563E-03 0.01196 ];
-0178.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.01170E+00 0.00082  1.00414E+00 0.00081  7.68732E-03 0.01091 ];
-0180.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.01481E+00 0.00080  1.00764E+00 0.00079  7.57501E-03 0.01165 ];
-0220.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.06496E+00 0.00081  1.05736E+00 0.00079  8.08197E-03 0.01099 ];
-0260.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.09900E+00 0.00075  1.09069E+00 0.00073  8.11930E-03 0.01090 ];
-0300.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.12334E+00 0.00075  1.11491E+00 0.00075  8.33834E-03 0.01087 ];
-
+ $ grep ANA_KEFF */*res.m
+0140.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  9.77722E-01 0.00038  9.70477E-01 0.00037  7.34925E-03 0.00516 ];
+0143.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  9.84753E-01 0.00037  9.77306E-01 0.00036  7.38676E-03 0.00518 ];
+0145.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  9.89578E-01 0.00036  9.82116E-01 0.00036  7.41180E-03 0.00524 ];
+0150.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.00042E+00 0.00035  9.92909E-01 0.00035  7.52187E-03 0.00542 ];
+0153.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.00638E+00 0.00037  9.99079E-01 0.00036  7.55009E-03 0.00470 ];
+0155.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.01141E+00 0.00037  1.00383E+00 0.00036  7.53737E-03 0.00520 ];
+0157.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.01542E+00 0.00040  1.00777E+00 0.00037  7.61806E-03 0.00503 ];
+0160.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.02254E+00 0.00037  1.01469E+00 0.00037  7.64013E-03 0.00516 ];
+0165.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.03123E+00 0.00036  1.02367E+00 0.00035  7.69739E-03 0.00487 ];
+0170.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.04043E+00 0.00037  1.03276E+00 0.00037  7.80146E-03 0.00477 ];
+0174.0/msfr_res.m:ANA_KEFF                  (idx, [1:   6]) = [  1.04773E+00 0.00036  1.03988E+00 0.00036  7.82924E-03 0.00477 ];
 '''
