@@ -287,6 +287,7 @@ mycore.save_deck()
         self.refl_lib          = '06c'  # Reflector nuclear data library
         self.refl_tempK        = 873.0  # Reflector temperature [K]
         self.salt_formula:str  = salt   # Salt formula
+        self.refuel_flow:float = 0.0    # wt_fraction/s refuel flow
         self.silver_at_r:float = Ag_r   # Where to put silver semi-shpere [cm]
         self.silver_d:float    = 0.05   # Thickness of silver semi-sphere [cm]
         self.s             = Salt(self.salt_formula, e) # Salt used
@@ -432,7 +433,7 @@ mat overflow 0.0007 burn 1 vol 1e8 tmp {self.tempK}
 
 % mass flow definitions
 mflow U_in
-all 0.0
+all {self.refuel_flow}
 
 mflow offgasratecore
 Ne 1e-2
@@ -442,9 +443,9 @@ Kr 1e-2
 Xe 1e-2
 Rn 1e-2
 
-% need to account for the increase in vloume with refueling
+% need to account for the increase in volume with refueling
 mflow over
-all 0.0
+all {self.refuel_flow}
 
 % predictor-corrector must be turned off to use depletion
 set pcc 0
