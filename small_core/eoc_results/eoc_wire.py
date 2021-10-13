@@ -9,9 +9,12 @@
 import agmsfr
 import numpy as np
 
-#my_path = "/home/ondrejch/APump/wire_small_jeff33/520"
-my_paths = ['/home/ondrejch/APump/wire_small_jeff33/520', '/home/ondrejch/APump/wire_small_jeff33/520/hs',
-'/home/ondrejch/APump/wire_small_jeff33/130', '/home/ondrejch/APump/wire_small_jeff33/130/hs']
+#my_path = "/home/ondrejch/APump/final_run/wire_small/520"
+my_paths = [
+'/home/ondrejch/APump/final_run/wire_small/520',
+'/home/ondrejch/APump/final_run/wire_small/520/hs',
+'/home/ondrejch/APump/final_run/wire_small/130',
+'/home/ondrejch/APump/final_run/wire_small/130/hs']
 
 a = {}
 
