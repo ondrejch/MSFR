@@ -9,17 +9,15 @@
 import agmsfr
 import numpy as np
 
-r = 128.0               # Smallest core has fuel salt radius of 128 cm
+r = 122.0               # Smallest core has fuel salt radius of 128 cm
 relf_thickness = 400.0  # 4m reflector
 refl = r + relf_thickness
 ag_rs = np.arange(130,refl, 30)             # Positions of silver shell
-#ag_d = 0.05             # 0.5 mm thick silver shell - default
 
-my_path = "/home/ondrejch/APump/MCFR/ag/small_jeff33"
+my_path = "/home/ondrejch/APump/final_run/deplete_small"
 
 a = {}      # Hash with results
 # Open all files
-#for ag_r in ag_rs[0:1]:
 for ag_r in ag_rs:
     print("Ag_r = ", ag_r)
     a[ag_r] = agmsfr.AgMSFRAnalyzer(my_path + "/ag_r-" + str(ag_r) +  "/msfr")
