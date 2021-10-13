@@ -60,7 +60,7 @@ class AgWireAnalyzer(object):
         self.fuel = self.d0.materials['fuelsalt']
         self.wires = []
         self.wdeps = []
-        self.wdeck_path:str = '/tmp'        # Path to wire depletion decks
+        self.wdeck_path:str = '/'.join(_deckname.split('/')[:-1]) # Path to wire depletion decks
         self.wdeck_name:str = 'wire_step'   # Wire depletion steps base name
         self.Ntopisos:int   = 10    # How many isotopes to plot
         self.topisos        = []    # List of the top EOC isotopes
@@ -198,7 +198,6 @@ class AgWireAnalyzer(object):
 '''
 import agmsfr
 aa = agmsfr.AgWireAnalyzer("/home/o/UTK/research/ARPA-E_Pump_ORNL/silver/msfr_dev/msfr")
-aa.wdeck_path="/home/o/UTK/research/ARPA-E_Pump_ORNL/silver/msfr_dev/"
 aa.read_wires()
 aa.plot_topisos()
 '''
