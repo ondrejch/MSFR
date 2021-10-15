@@ -29,6 +29,7 @@ class MSFRbase(object):
                                         # Can be 0, 1, 10, 20, 30, 40 ... n/10 years
         self.lib:str       = '09c'      # CE xsection temp selection
         self.lib_ag:str    = '09c'      # CE xsection temp selection for silver
+        self.nfg:str       = None       # Energy group structure to use is any
         self.queue:str     = 'gen6'     # NEcluster torque queue
         self.histories:int = 10000      # Neutron histories per cycle
         self.ompcores:int  = 16         # OMP core count
@@ -183,6 +184,18 @@ set mvol r-silver 0  {self.volume_fuel()}
 '''
         output += self.lib_deck()
 
+        if self.nfg is not None:
+            output += f'''
+% Use group structure for group constant generation
+set micro {self.nfg}
+set nfg {self.nfg}
+'''
+        else:
+            output += f'''
+% Turn off group constant generation
+set gcu -1
+'''
+
         output += f'''
 % Depletion
 set inventory all
@@ -200,7 +213,6 @@ set rfr -{prevday} "wire_step-{prevstep:03d}.wrk"'''
 src 1 n sg fuel 1
 
 % Options:
-set gcu -1
 set nps 100000000
 
 % --- materials ---
@@ -393,6 +405,15 @@ set bc 1
 % Neutron population and criticality cycles
 set pop {self.histories} 240 40
 
+'''
+        if self.nfg is not None:
+            data_cards += f'''
+% Use group structure for group constant generation
+set micro {self.nfg}
+set nfg {self.nfg}
+'''
+        else:
+            data_cards += f'''
 % Turning off group constant generation hastens the calculation
 set gcu -1
 '''
