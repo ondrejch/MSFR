@@ -24,9 +24,11 @@ for ag_r in ag_rs:
     a[ag_r].calc_agfrac()
     a[ag_r].calc_topisos()
 
+f = open('shellEOC.dat','w')
 for ag_r in ag_rs:
-     print (ag_r, a[ag_r].get_EOCfrac('Ag'), a[ag_r].get_EOCfrac('Pd'), a[ag_r].get_EOCfrac('Cd'))
+     print(ag_r-r, a[ag_r].get_EOCfrac('Ag'), a[ag_r].get_EOCfrac('Pd'), a[ag_r].get_EOCfrac('Cd'))
+     f.write('\t'.join([str(ag_r-r), str(a[ag_r].get_EOCfrac('Ag')), str(a[ag_r].get_EOCfrac('Pd')), str(a[ag_r].get_EOCfrac('Cd')),'\n']))
 #    a[ag_r].plot_topisos(my_path + "/plots/ag_" + str(ag_r)+".png", "Ag_r= "+str(ag_r)+" cm")
 #    a[ag_r].plot_multi(my_path + "/plots/fig_ag_" + str(ag_r)+".png", "Ag_r= "+str(ag_r)+" cm")
-
+f.close()
 
