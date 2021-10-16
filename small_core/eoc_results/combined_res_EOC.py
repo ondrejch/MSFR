@@ -85,11 +85,11 @@ gnuplot_script=b'''
 set terminal pngcairo size 800,600 enhanced font 'Verdana,14'
 set out 'res.png'
 set title 'Silver wire resistivity increase [%]'
-set xlabel 'Reflector thickness [cm]
-set ylabel 'Relative resistivity increase [%]
+set xlabel 'Reflector thickness [cm]'
+set ylabel 'Relative resistivity increase [%]'
 set log y
 set grid
-plot []'res.dat' u 1:6 w p notit ls 1 pt 7 ps 0.9, '' u 1:6 w l ls 1 lw 0.4 smooth acs notit
+plot [0:300]'res.dat' u 1:6 w p notit ls 1 pt 7 ps 0.9, '' u 1:6 w l ls 1 lw 0.4 smooth acs notit
 set out
 quit
 '''
