@@ -180,10 +180,11 @@ class AgWireAnalyzer(object):
         myplot.set_yscale('log')
         secax = myplot.secondary_xaxis('top', functions=(self.burnup2days, self.days2burnup))
         secax.set_xlabel('EFPD [days]')
-        myplot.legend(loc="best", fontsize="medium", title="Isotopes in silver wire")
+        myplot.legend(loc="upper left", fontsize="small", title="Wire nuclides")
         (ymin, ymax) = myplot.get_ylim()
         ymin = 1e-12
         plt.ylim(ymin, ymax)
+        plt.grid(True,which="both")
         if plot_title != '':
             plt.title(plot_title)
         if plot_file == None:
