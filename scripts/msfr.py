@@ -4,6 +4,16 @@
 # 2020-03-13
 # GNU/GPL
 
+'''
+This file contains classes that generate imput decks for MSFR Serpent calcaltions.
+
+MSFR(MSFRbase) is a basic spherical MSFR, which can have a silver shell embedded in a reflector
+
+AgWire(MSFRbase) describes trasmutation of a silver wire in a a depleted MSFR salt. The key issue is that the irraditing salt (the radiation source) has to be built manually for each depletion step. This is done at the end of method AgWire.wired_deck(). 
+
+liquidusNaClUCl3 is a helper function to obtain liquidus temperature of NaCl-UCl3 salt.  
+'''
+
 import os
 import math
 import re
@@ -136,7 +146,7 @@ w.save_qsub_file()     '''
             return V / 2.0
 
     def wire_deck(self, step:int=1) -> str:
-        '''Returns wire-in-salt Serpent input deck for a particular step calculation'''
+        '''Returns wire-in-salt Serpent input deck for a particular burnup step calculation'''
         if(step < 1):
             return 'Error: step has to be >= 1, value passed: ' + str(step)
         prevstep = step - 1
@@ -218,8 +228,10 @@ set nps 100000000
 % --- materials ---
 mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
 '''
+        #
         # Write material composition for the burned salt fuel
         # (this acts as a neutron source for the simulation)
+        # 
         iso_has_xs:bool = True
         prevzai:int = 0
         m_offset:int = 400  # isomer offset for ZA.id

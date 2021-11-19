@@ -7,3 +7,6 @@ agmsfr.py - analyzes the resuts of wilver wire depletion
 salts.py  - salt mixer
 play*     - sandbox
 
+
+See the individual files for their resprective descriptions. 
+
