@@ -613,7 +613,7 @@ class MCRE(MSFRbase):
     MCFR usage: 
         import msfr
         mycore = msfr.MCRE(200, 250, 250, 0.13, "66.66%NaCl+33.34%UCl3", 'MCFR')
-        mycore.power   = 3e5 # power 300 kWth
+        mycore.power   = 1.8e9 # power 1.8 GWth
         mycore.deck_path = '/tmp/'
         mycore.save_deck()
     '''
@@ -641,7 +641,13 @@ class MCRE(MSFRbase):
 
     def salt_volume(self) -> float:
         '''Get salt volume, twice the fuel cylinder volume'''
-        V = math.pi * self.r**2 * self.h
+        if self.design == 'MCRE':
+            b_cone = math.pi * (self.r/4)**2 * (2/5*self.refl + 3) / 3
+        elif self.design == 'MCFR':
+            b_cone = math.pi * (self.r/2)**2 * (3/5*self.refl + 3) / 3
+        cylinder = math.pi * self.r**2 * self.h
+        t_cone = math.pi * (self.r/2)**2 * self.h/20 / 3
+        V = cylinder - t_cone - b_cone
         return 2.0 * V
 
     def get_cells(self) -> str:
