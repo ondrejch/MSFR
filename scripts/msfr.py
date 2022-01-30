@@ -42,7 +42,7 @@ class MSFRbase(object):
         self.lib_ag:str    = '09c'      # CE xsection temp selection for silver
         self.nfg:str       = None       # Energy group structure to use is any
         self.queue:str     = 'gen6'     # NEcluster torque queue
-        self.histories:int = 10000      # Neutron histories per cycle
+        self.histories:int = 50000      # Neutron histories per cycle
         self.ompcores:int  = 16         # OMP core count
         self.deck_name:str = 'mcfr_input'     # Serpent input file name
         self.deck_path:str = '/tmp'     # Where to run the Serpent deck
@@ -106,6 +106,7 @@ AGWIRE_CASES = ['fully-submerged', 'half-submerged']
 
 class AgWire(MSFRbase):
     '''Silver wire depleted in MSFR fuel salt. Usage:
+# Example class usage:
 import msfr
 w = msfr.AgWire(0.2, 'half-submerged')
 w.deck_path='/home/ondrejch/APump/wire_small_jeff33/130/hs/'
@@ -266,14 +267,15 @@ mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
                 print(e)
 
     def save_qsub_file(self):
-        '''Writes qsub file to run all steps. They have to be run consecutively.'''
+        '''Writes a qsub job submission file to run all steps. 
+        The depletion steps have to be run consecutively.'''
         try:                # Write the script
             frun = open(self.qsub_file, 'w')
-            frun.write('''#!/bin/bash
+            frun.write(f'''#!/bin/bash
 #PBS -V
 #PBS -N S2-wire
-#PBS -q xeon
-#PBS -l nodes=1:ppn=64
+#PBS -q {self.queue}
+#PBS -l nodes=1:ppn={self.ompcores}
 
 hostname
 rm -f donewire.dat
@@ -286,14 +288,14 @@ module load serpent
             print(e)
         for step in range(1, len(self.fuel.days)):
             frun.write(f'''
-sss2 -omp 64 {self.wdeck_name}-{step:03d} > myout_{step:03d}.out''')
+sss2 -omp {self.ompcores} {self.wdeck_name}-{step:03d} > myout_{step:03d}.out''')
         frun.write('\n')
         frun.close()
 
 
 class MSFR(MSFRbase):
     '''Molten Spherical chloride salt Fast Reactor
-    usage:
+# Example class usage:
 import msfr
 mycore = msfr.MSFR(200, 300, 0.1975, "66.66%NaCl+33.34%UCl3")
 mycore.power   = 1e9 # power 1GWth
@@ -964,6 +966,8 @@ if __name__ == '__main__':
 #   mycore.run_deck()
 
 '''
+# Example code usage:
+
 import msfr
 w = msfr.AgWire()
 w.deck_path='/home/ondrejch/APump/MCFR/ag/jeff33-wire/run0'
