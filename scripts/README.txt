@@ -8,5 +8,5 @@ salts.py  - salt mixer
 play*     - sandbox
 
 
-See the individual files for their resprective descriptions. 
+See comments within the individual files for detailed code descriptions. 
 
