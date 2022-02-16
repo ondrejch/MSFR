@@ -608,18 +608,18 @@ class MCRE(MSFRbase):
     '''Molten cylindrical Chloride salt fast Reactor Experiment
     MCRE usage:
         import msfr
-        mycore = msfr.MCRE(19, 100, 44, 0.93, "66.66%NaCl+33.34%UCl3", 'MCRE')
+        mycore = msfr.MCRE(20, 90, 35, 0.9, "66.66%NaCl+33.34%UCl3", 'MCRE')
         mycore.power   = 3e5 # power 300 kWth
         mycore.deck_path = '/tmp/'
         mycore.save_deck()
     MCFR usage: 
         import msfr
-        mycore = msfr.MCRE(200, 250, 250, 0.13, "66.66%NaCl+33.34%UCl3", 'MCFR')
+        mycore = msfr.MCRE(200, 200, 200, 0.05, "66.66%NaCl+33.34%UCl3", 'MCFR')
         mycore.power   = 1.8e9 # power 1.8 GWth
         mycore.deck_path = '/tmp/'
         mycore.save_deck()
     '''
-    def __init__(self, r:float=19.0, h:float=100, refl:float=44.0, e:float=0.93, salt="66.66%NaCl+33.34%UCl3", design='MCRE'):
+    def __init__(self, r:float=20.0, h:float=90, refl:float=35.0, e:float=0.9, salt="66.66%NaCl+33.34%UCl3", design='MCRE'):
         if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
             raise ValueError("Bad parameters: ", r, e)
         elif design!='MCRE' and design!='MCFR':
@@ -985,13 +985,13 @@ w.save_qsub_file()
 
 
 import msfr
-mycore = msfr.MCRE(19, 100, 44, 0.93, "66.66%NaCl+33.34%UCl3", 'MCRE')
+mycore = msfr.MCRE(20, 90, 35, 0.9, "66.66%NaCl+33.34%UCl3", 'MCRE')
 mycore.power   = 3e5 # power 300 kWth
 mycore.deck_path = '/tmp/'
 mycore.save_deck()
 
 import msfr
-mycore = msfr.MCRE(200, 250, 250, 0.13, "66.66%NaCl+33.34%UCl3", 'MCFR')
+mycore = msfr.MCRE(200, 200, 200, 0.05, "66.66%NaCl+33.34%UCl3", 'MCFR')
 mycore.power   = 3e5 # power 300 kWth
 mycore.deck_path = '/tmp/'
 mycore.save_deck()
