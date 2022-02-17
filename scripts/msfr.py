@@ -4,14 +4,25 @@
 # 2020-03-13
 # GNU/GPL
 
+'''
+This file contains classes that generate imput decks for MSFR Serpent calcaltions.
+
+MSFR(MSFRbase) is a basic spherical MSFR, which can have a silver shell embedded in a reflector
+
+AgWire(MSFRbase) describes trasmutation of a silver wire in a a depleted MSFR salt. The key issue is that the irraditing salt (the radiation source) has to be built manually for each depletion step. This is done at the end of method AgWire.wired_deck(). 
+
+liquidusNaClUCl3 is a helper function to obtain liquidus temperature of NaCl-UCl3 salt.  
+'''
+
 import os
 import math
 import re
 from scipy import interpolate
+from textwrap import dedent
 from salts import Salt
 import serpentTools
 
-do_plots = False
+do_plots = True
 my_debug = False
 
 NUCLEAR_LIBRARIES = ['endf7','jeff33','endf8']
@@ -31,9 +42,9 @@ class MSFRbase(object):
         self.lib_ag:str    = '09c'      # CE xsection temp selection for silver
         self.nfg:str       = None       # Energy group structure to use is any
         self.queue:str     = 'gen6'     # NEcluster torque queue
-        self.histories:int = 10000      # Neutron histories per cycle
+        self.histories:int = 50000      # Neutron histories per cycle
         self.ompcores:int  = 16         # OMP core count
-        self.deck_name:str = 'msfr'     # Serpent input file name
+        self.deck_name:str = 'mcfr_input'     # Serpent input file name
         self.deck_path:str = '/tmp'     # Where to run the Serpent deck
         self.nuc_libs:str  = 'jeff33'   # Nuclear data libraries
         self.qsub_file:str = os.path.expanduser('~/') + '/run.sh'  # qsub script path
@@ -95,6 +106,7 @@ AGWIRE_CASES = ['fully-submerged', 'half-submerged']
 
 class AgWire(MSFRbase):
     '''Silver wire depleted in MSFR fuel salt. Usage:
+# Example class usage:
 import msfr
 w = msfr.AgWire(0.2, 'half-submerged')
 w.deck_path='/home/ondrejch/APump/wire_small_jeff33/130/hs/'
@@ -136,7 +148,7 @@ w.save_qsub_file()     '''
             return V / 2.0
 
     def wire_deck(self, step:int=1) -> str:
-        '''Returns wire-in-salt Serpent input deck for a particular step calculation'''
+        '''Returns wire-in-salt Serpent input deck for a particular burnup step calculation'''
         if(step < 1):
             return 'Error: step has to be >= 1, value passed: ' + str(step)
         prevstep = step - 1
@@ -218,8 +230,10 @@ set nps 100000000
 % --- materials ---
 mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
 '''
+        #
         # Write material composition for the burned salt fuel
         # (this acts as a neutron source for the simulation)
+        # 
         iso_has_xs:bool = True
         prevzai:int = 0
         m_offset:int = 400  # isomer offset for ZA.id
@@ -253,14 +267,15 @@ mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
                 print(e)
 
     def save_qsub_file(self):
-        '''Writes qsub file to run all steps. They have to be run consecutively.'''
+        '''Writes a qsub job submission file to run all steps. 
+        The depletion steps have to be run consecutively.'''
         try:                # Write the script
             frun = open(self.qsub_file, 'w')
-            frun.write('''#!/bin/bash
+            frun.write(f'''#!/bin/bash
 #PBS -V
 #PBS -N S2-wire
-#PBS -q xeon
-#PBS -l nodes=1:ppn=64
+#PBS -q {self.queue}
+#PBS -l nodes=1:ppn={self.ompcores}
 
 hostname
 rm -f donewire.dat
@@ -273,14 +288,14 @@ module load serpent
             print(e)
         for step in range(1, len(self.fuel.days)):
             frun.write(f'''
-sss2 -omp 64 {self.wdeck_name}-{step:03d} > myout_{step:03d}.out''')
+sss2 -omp {self.ompcores} {self.wdeck_name}-{step:03d} > myout_{step:03d}.out''')
         frun.write('\n')
         frun.close()
 
 
 class MSFR(MSFRbase):
     '''Molten Spherical chloride salt Fast Reactor
-    usage:
+# Example class usage:
 import msfr
 mycore = msfr.MSFR(200, 300, 0.1975, "66.66%NaCl+33.34%UCl3")
 mycore.power   = 1e9 # power 1GWth
@@ -588,6 +603,315 @@ set title "sphMCFR radius {self.r}, reflector {self.refl}"
                 deck += self.get_depl_add_10years()
         return deck.format(**locals())
 
+
+class MCRE(MSFRbase):
+    '''Molten cylindrical Chloride salt fast Reactor Experiment
+    MCRE usage:
+        import msfr
+        mycore = msfr.MCRE(20, 90, 35, 0.9, "66.66%NaCl+33.34%UCl3", 'MCRE')
+        mycore.power   = 3e5 # power 300 kWth
+        mycore.deck_path = '/tmp/'
+        mycore.save_deck()
+    MCFR usage: 
+        import msfr
+        mycore = msfr.MCRE(200, 200, 200, 0.05, "66.66%NaCl+33.34%UCl3", 'MCFR')
+        mycore.power   = 1.8e9 # power 1.8 GWth
+        mycore.deck_path = '/tmp/'
+        mycore.save_deck()
+    '''
+    def __init__(self, r:float=20.0, h:float=90, refl:float=35.0, e:float=0.9, salt="66.66%NaCl+33.34%UCl3", design='MCRE'):
+        if r<10.0 or refl<r or e>1.0 or e<0.0:  # Reject bad input
+            raise ValueError("Bad parameters: ", r, e)
+        elif design!='MCRE' and design!='MCFR':
+            raise ValueError("Bad parameter: ", design)
+
+        MSFRbase.__init__(self) 
+        # core parameters
+        self.r:float           = r      # Core radius [cm]
+        self.h:float           = h      # Core height [cm]
+        self.refl:float        = refl-r # Reflector thickness [cm]
+        self.refl_lib          = '06c'  # Reflector nuclear data library
+        self.refl_tempK        = 873.0  # Reflector temperature [K]
+        self.salt_formula:str  = salt   # Salt formula
+        self.refuel_flow:float = 0.0    # wt_fraction/s refuel flow
+        self.s             = Salt(self.salt_formula, e) # Salt used
+        if design == 'MCRE':
+            self.s.set_chlorine_37Cl_fraction(0.24)      # Natural chlorine-37
+        elif design == 'MCFR':
+            self.s.set_chlorine_37Cl_fraction(0.90)      # Enriched chlorine-37
+        self.design            = design  # MCRE or MCFR
+
+    def salt_volume(self) -> float:
+        '''Get salt volume, twice the fuel cylinder volume'''
+        if self.design == 'MCRE':
+            b_cone = math.pi * (self.r/4)**2 * (2/5*self.refl + 3) / 3
+        elif self.design == 'MCFR':
+            b_cone = math.pi * (self.r/2)**2 * (3/5*self.refl + 3) / 3
+        cylinder = math.pi * self.r**2 * self.h
+        t_cone = math.pi * (self.r/2)**2 * self.h/20 / 3
+        V = cylinder - t_cone - b_cone
+        return 2.0 * V
+
+    def get_cells(self) -> str:
+        'Cell cards for Serpent input deck'
+        cells = dedent('''
+            %______________cell definitions_____________________________________
+            cell 30  0  refl       1 -2 -3  4        % radial reflector
+            cell 31  0  refl      -2  3 -5           % upper reflector
+            cell 32  0  refl      -8 -3              % upper reflector cone
+            cell 33  0  refl      -2 -4  6           % lower reflector
+            cell 34  0  refl      -7 4 -9            % lower reflector cone
+            cell 50  0  fuelsalt  -1 -3  4 #32 #34   % fuel salt
+            cell 97  0  outside    2                 % outside
+            cell 98  0  outside    5                 % outside
+            cell 99  0  outside    -6                % outside
+            ''')
+        return cells.format(**locals())
+
+    def get_surfaces(self) -> str:
+        'Surface cards for Serpent input deck'
+        refl_r = self.r + self.refl  # reflector radius
+        refl_top, refl_bottom = self.h+self.refl, 0.0-self.refl
+        tcone_r = self.r/2
+        if self.design == 'MCRE':
+            cutoff = 2/5 * self.refl
+            bcone_r = self.r/4
+        elif self.design == 'MCFR':
+            cutoff = 3/5 * self.refl
+            bcone_r = self.r/2
+        tcone_h, bcone_h = -self.h/20, cutoff+3
+        surfaces = dedent('''
+            %______________surface definitions__________________________________
+            surf 1  cylz  0.0 0.0 {self.r}       % fuel salt
+            surf 2  cylz  0.0 0.0 {refl_r}       % radial reflector
+            surf 3  pz    {self.h}              % fuel top
+            surf 4  pz    0                  % fuel bottom
+            surf 5  pz    {refl_top}              % refl top
+            surf 6  pz    {refl_bottom}              % refl bottom
+            surf 7 cone   0 0 0 {bcone_r} {bcone_h}     % bottom refl cone, x y z r h
+            surf 8 cone   0 0 {self.h} {tcone_r} {tcone_h}      % top refl cone
+            surf 9 pz     {cutoff}                    % bottom cone refl cutoff
+            ''')
+        return surfaces.format(**locals())
+
+    def get_materials(self) -> str:
+        'Material definitions, non-salt'
+        refl_lib  = self.refl_lib
+        if self.design == 'MCRE':
+            materials = dedent('''
+                % MgO reflector
+                mat refl -3.5 tmp 873.0 rgb 75 75 75
+                 12024.06c 1.0
+                 8016.06c 1.0
+                ''')
+        elif self.design == 'MCFR':
+            materials = dedent('''
+                % Lead reflector
+                mat refl -10.4 tmp 873.0 rgb 75 75 75
+                 82204.{refl_lib} 0.014
+                 82206.{refl_lib} 0.241
+                 82207.{refl_lib} 0.221
+                 82208.{refl_lib} 0.524
+                ''')
+        return materials.format(**locals())
+
+    def get_data_cards(self) -> str:
+        'Data cards for the reactor'
+        fs_volume = self.salt_volume()
+        data_cards = dedent('''
+            set mvol fuelsalt 0 {fs_volume}  % Fuel salt volume
+
+            set bc 1  % Boundary condition, vacuum 
+            
+            % set arr 2  % Analog reaction rate
+            
+            set pop {self.histories} 240 40  % N pop and criticality cycles
+            ''')
+        if self.design == 'MCRE':
+            data_cards += dedent(f'''
+                set power 300000.0  % Power, 300 thermal kW
+                ''')
+        elif self.design == 'MCFR':
+            data_cards += dedent(f'''
+                set power 1800000000.0  % Power, 1.8 thermal GW
+                ''')
+        if self.nfg is not None:
+            data_cards += dedent(f'''
+                % Use group structure for group constant generation
+                set micro {self.nfg}
+                set nfg {self.nfg}
+                ''')
+        else:
+            data_cards += dedent(f'''
+                set gcu -1  % Turning off group constant generation hastens the calculation
+                ''')
+        data_cards += self.lib_deck()
+
+        if do_plots:
+            data_cards += dedent('''
+                % Plots
+                plot 3 1500 1500
+                plot 2 1500 1500
+                ''')
+        return data_cards.format(**locals())
+
+    def get_repr_cards(self) -> str:
+        'Reprocessing setup'
+        refuel_lib = self.lib   # First, build refuel stream using the same material as fuel
+        refuel_tmp   = self.s.serpent_mat(self.tempK) # Same as fresh fuel
+        refuel_split = refuel_tmp.split('\n')
+        refuel_rho   = re.search(r'-[0-9.]+', refuel_split[1]).group()
+        if float(refuel_rho) > -1.0:     # Sanity check
+            raise ValueError('Refuel density problem, ',refuel_rho)
+        refuel  = 'mat U_stock {refuel_rho} burn 1 vol 1e8 tmp {self.tempK}\n'.format(**locals())
+        refuel += '\n'.join(refuel_split[2:])   # Add isotopic density list
+        repr_cards = dedent('''
+            %___________Reprocessing___________
+            % First we need some extra materials to do depletion with reprocessing correctly.
+
+            {refuel}  % stockpile of extra refuel
+
+            % tanks for offgases
+            mat offgastankcore 0.0007 burn 1 vol 1e6 tmp {self.tempK}
+            2004.{refuel_lib} 1
+
+            % overflow tank
+            mat overflow 0.0007 burn 1 vol 1e8 tmp {self.tempK}
+            2004.{refuel_lib} 1
+
+            % mass flow definitions
+            mflow U_in
+            all {self.refuel_flow}
+
+            mflow offgasratecore
+            Ne 1e-2
+            Ar 1e-2
+            He 1e-2
+            Kr 1e-2
+            Xe 1e-2
+            Rn 1e-2
+
+            % need to account for the increase in volume with refueling
+            mflow over
+            all {self.refuel_flow}
+
+            % predictor-corrector must be turned off to use depletion
+            set pcc 0
+            % dumps depletion matrices if needed. should be one per burnt material.
+            % set depmtx 1
+
+            %syntax:
+            % rc <from_mat> <to_mat> <mflow> <setting> where setting is either 0, 1 or 2.
+
+            rep source_rep
+            rc U_stock fuelsalt U_in 0
+            rc fuelsalt offgastankcore offgasratecore 1
+            rc fuelsalt overflow over 1
+            ''')
+        return repr_cards.format(**locals())
+
+    def get_depl_cards(self) -> str:
+        'Depletion data setup'
+        depl_cards = dedent('''
+            % Depletion cards
+            set inventory all
+            dep
+            pro source_rep
+            daystep
+            ''')
+        return depl_cards.format(**locals())
+
+    def get_depl_1st_year(self) -> str:
+        '1st year of depletion in daysteps'
+        depl_1st_year = dedent('''\
+            0.05 0.15 0.3 0.5   % 1 day
+            1 2 3               % 1 week
+            7 7 7 14 14 14 14 28 28 28 28 42 42 42 44  % 1 year, 366 days''')
+        return depl_1st_year.format(**locals())
+
+    def get_depl_add_9years(self) -> str:
+        'Add 9 years in daysteps'
+        depl_add_9years = dedent('''\
+            52 52 52 52 52 52 53    % 365
+            52 52 52 52 52 52 53    % 365
+            52 52 52 52 52 52 54    % 366
+            52 52 52 52 52 52 53    % 365
+            52 52 52 52 52 52 53    % 365
+            52 52 52 52 52 52 54    % 366
+            52 52 52 52 52 52 53    % 365
+            52 52 52 52 52 52 53    % 365
+            52 52 52 52 52 52 53    % 365''')
+        return depl_add_9years.format(**locals())
+
+    def get_depl_add_10years(self) -> str:
+        'Add 10 years in daysteps'
+        depl_add_10years = dedent('''\
+            120 120 126 120 120 125 120 120 125 120 120 125
+            120 120 126 120 120 125 120 120 125 120 120 125
+            120 120 126 120 120 125''')
+        return depl_add_10years.format(**locals())
+
+    def save_deck(self):
+        'Saves Serpent deck into an input file'
+        try:
+            os.makedirs(self.deck_path, exist_ok = True)
+            fh = open(self.deck_path + '/' + self.deck_name, 'w')
+            fh.write(self.get_deck())
+            fh.close()
+        except IOError as e:
+            print("[ERROR] Unable to write to deck file: ",
+                  self.deck_path + '/' + self.deck_name)
+            print(e)
+
+    def save_qsub_file(self):
+        'Writes run file for TORQUE.'
+        qsub_content = dedent('''#!/bin/bash
+            #PBS -V
+            #PBS -N MSFR_S2
+            #PBS -q {self.queue}
+            #PBS -l nodes=1:ppn={self.ompcores}
+
+            hostname
+            rm -f done.dat
+            cd ${{PBS_O_WORKDIR}}
+            module load mpi
+            module load serpent
+
+            sss2 -omp {self.ompcores} {self.deck_name} > myout.out
+            awk 'BEGIN{{ORS="\\t"}} /ANA_KEFF/ || /CONVERSION/ {{print $7" "$8;}}' {self.deck_name}_res.m > done.out
+            #rm {self.deck_name}.out
+            ''').format(**locals())
+        try:                # Write the deck
+            f = open(self.qsub_file, 'w')
+            f.write(qsub_content)
+            f.close()
+        except IOError as e:
+            print("Unable to write to qsub file", f)
+            print(e)
+
+    def get_deck(self) -> str:
+        'Serpent deck for the lattice'
+        deck = dedent('''\
+            set title "cylMCFR radius {self.r}, height {self.h}, reflector {self.refl}" ''')
+        deck += self.get_surfaces()
+        deck += self.get_cells()
+        deck += "\n"
+        deck += self.s.serpent_mat(self.tempK)
+        deck += self.get_materials()
+        deck += self.get_data_cards()
+        if self.deplete > 0.0:
+            deck += self.get_repr_cards()
+            deck += self.get_depl_cards()
+        if self.deplete > 0.5:          # Hacky, but will do :)
+            deck += self.get_depl_1st_year()
+        if self.deplete > 9:
+            deck += self.get_depl_add_9years()
+        if self.deplete > 19:
+            for i in range((self.deplete - 10) // 10):
+                deck += self.get_depl_add_10years()
+        return deck.format(**locals())
+
+
 def liquidusNaClUCl3(xUCl3:float) -> float:
     '''Returns liquidus temperature of NaCl-LiCl3 based on
     https://doi.org/10.1016/j.jnucmat.2015.07.050
@@ -629,11 +953,11 @@ def liquidusNaClUCl3(xUCl3:float) -> float:
 if __name__ == '__main__':
     print("This module handles a MSFR deck generation class.")
     input("Press Ctrl+C to quit, or enter else to test it.")
-    mycore = MSFR()
-    mycore.deplete = 100
+    mycore = MCRE(r=200.0, h=450.0, refl=250.0, e=0.13, salt="66.66%NaCl+33.34%UCl3", design='MCFR')  # MSFR()
+    mycore.deplete = 0  # 100
     print("***** Serpent deck: \n" + mycore.get_deck() + "\n***** ")
-    mycore.deck_path = os.path.expanduser('~/tmp/msfr')
-    print(mycore.deck_path + ' / ' + mycore.deck_name)
+    mycore.deck_path = os.path.expanduser('/Users/klawso28/Documents')  # ('~/tmp/msfr')
+    print(mycore.deck_path + '/' + mycore.deck_name)
     mycore.qsub_file = mycore.deck_path + "/run.sh"
 #    mycore.ompcores = 8
 #    mycore.queue = 'fill'
@@ -642,6 +966,8 @@ if __name__ == '__main__':
 #   mycore.run_deck()
 
 '''
+# Example code usage:
+
 import msfr
 w = msfr.AgWire()
 w.deck_path='/home/ondrejch/APump/MCFR/ag/jeff33-wire/run0'
@@ -656,5 +982,18 @@ w.deck_path='/home/ondrejch/APump/MCFR/ag/jeff33-wire/run0/hs'
 w.load_data()
 w.save_decks()
 w.save_qsub_file()
+
+
+import msfr
+mycore = msfr.MCRE(20, 90, 35, 0.9, "66.66%NaCl+33.34%UCl3", 'MCRE')
+mycore.power   = 3e5 # power 300 kWth
+mycore.deck_path = '/tmp/'
+mycore.save_deck()
+
+import msfr
+mycore = msfr.MCRE(200, 200, 200, 0.05, "66.66%NaCl+33.34%UCl3", 'MCFR')
+mycore.power   = 3e5 # power 300 kWth
+mycore.deck_path = '/tmp/'
+mycore.save_deck()
 
 '''
