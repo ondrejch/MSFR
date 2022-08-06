@@ -9,9 +9,9 @@ This file contains classes that generate imput decks for MSFR Serpent calcaltion
 
 MSFR(MSFRbase) is a basic spherical MSFR, which can have a silver shell embedded in a reflector
 
-AgWire(MSFRbase) describes trasmutation of a silver wire in a a depleted MSFR salt. The key issue is that the irraditing salt (the radiation source) has to be built manually for each depletion step. This is done at the end of method AgWire.wired_deck(). 
+AgWire(MSFRbase) describes trasmutation of a silver wire in a a depleted MSFR salt. The key issue is that the irraditing salt (the radiation source) has to be built manually for each depletion step. This is done at the end of method AgWire.wired_deck().
 
-liquidusNaClUCl3 is a helper function to obtain liquidus temperature of NaCl-UCl3 salt.  
+liquidusNaClUCl3 is a helper function to obtain liquidus temperature of NaCl-UCl3 salt.
 '''
 
 import os
@@ -233,7 +233,7 @@ mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
         #
         # Write material composition for the burned salt fuel
         # (this acts as a neutron source for the simulation)
-        # 
+        #
         iso_has_xs:bool = True
         prevzai:int = 0
         m_offset:int = 400  # isomer offset for ZA.id
@@ -267,7 +267,7 @@ mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
                 print(e)
 
     def save_qsub_file(self):
-        '''Writes a qsub job submission file to run all steps. 
+        '''Writes a qsub job submission file to run all steps.
         The depletion steps have to be run consecutively.'''
         try:                # Write the script
             frun = open(self.qsub_file, 'w')
@@ -450,7 +450,8 @@ plot 3 1500 1500
         refuel_rho   = re.search(r'-[0-9.]+', refuel_split[1]).group()
         if float(refuel_rho) > -1.0:     # Sanity check
             raise ValueError('Refuel density problem, ',refuel_rho)
-        refuel  = 'mat U_stock {refuel_rho} burn 1 vol 1e8 tmp {self.tempK}\n'.format(**locals())
+        refuel_volume = self.salt_volume()
+        refuel  = 'mat U_stock {refuel_rho} burn 1 vol {refuel_volume} tmp {self.tempK}\n'.format(**locals())
         refuel += '\n'.join(refuel_split[2:])   # Add isotopic density list
         repr_cards = '''
 %___________Reprocessing___________
@@ -612,7 +613,7 @@ class MCRE(MSFRbase):
         mycore.power   = 3e5 # power 300 kWth
         mycore.deck_path = '/tmp/'
         mycore.save_deck()
-    MCFR usage: 
+    MCFR usage:
         import msfr
         mycore = msfr.MCRE(200, 200, 200, 0.05, "66.66%NaCl+33.34%UCl3", 'MCFR')
         mycore.power   = 1.8e9 # power 1.8 GWth
@@ -625,7 +626,7 @@ class MCRE(MSFRbase):
         elif design!='MCRE' and design!='MCFR':
             raise ValueError("Bad parameter: ", design)
 
-        MSFRbase.__init__(self) 
+        MSFRbase.__init__(self)
         # core parameters
         self.r:float           = r      # Core radius [cm]
         self.h:float           = h      # Core height [cm]
@@ -721,10 +722,10 @@ class MCRE(MSFRbase):
         data_cards = dedent('''
             set mvol fuelsalt 0 {fs_volume}  % Fuel salt volume
 
-            set bc 1  % Boundary condition, vacuum 
-            
+            set bc 1  % Boundary condition, vacuum
+
             % set arr 2  % Analog reaction rate
-            
+
             set pop {self.histories} 240 40  % N pop and criticality cycles
             ''')
         if self.design == 'MCRE':
