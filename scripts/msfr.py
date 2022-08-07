@@ -417,6 +417,10 @@ set bc 1
 % Analog reaction rate
 % set arr 2
 
+% Flux in silver shell
+det silverflux de fluxgrid dm silver
+ene fluxgrid 3 500 1e-11 2e1
+
 % Neutron population and criticality cycles
 set pop {self.histories} 240 40
 
