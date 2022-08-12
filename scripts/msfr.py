@@ -213,6 +213,10 @@ set gcu -1
 set inventory all
 dep daytot {day}
 
+# Flux spectrum
+det flux de fluxgrid dm silver
+ene fluxgrid 3 500 1e-11 2e1
+
 % Read binary restart file
 set rfw 1'''
         if step > 1:
