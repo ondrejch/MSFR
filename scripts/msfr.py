@@ -213,7 +213,7 @@ set gcu -1
 set inventory all
 dep daytot {day}
 
-# Flux spectrum
+% Flux spectrum
 det flux de fluxgrid dm silver
 ene fluxgrid 3 500 1e-11 2e1
 
@@ -283,7 +283,7 @@ mat fuel sum fix "{self.lib}" {self.tempK} rgb 50 210 50
 
 hostname
 rm -f donewire.dat
-cd ${PBS_O_WORKDIR}
+cd ${{PBS_O_WORKDIR}}
 module load mpi
 module load serpent
 ''')
@@ -421,12 +421,15 @@ set bc 1
 % Analog reaction rate
 % set arr 2
 
+% Neutron population and criticality cycles
+set pop {self.histories} 240 40
+
+'''
+        if self.silver_at_r > self.r and self.silver_at_r < self.refl:
+            data_cards += '''
 % Flux in silver shell
 det silverflux de fluxgrid dm silver
 ene fluxgrid 3 500 1e-11 2e1
-
-% Neutron population and criticality cycles
-set pop {self.histories} 240 40
 
 '''
         if self.nfg is not None:
